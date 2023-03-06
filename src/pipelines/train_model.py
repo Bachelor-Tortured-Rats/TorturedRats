@@ -22,16 +22,17 @@ import matplotlib.pyplot as plt
 import click
 
 
-from src.models.unet_model import create_unet
+from src.models.unet_model import create_unet, load_unet
 from src.data.IRCAD_dataset import load_IRCAD_dataset
+from src.data.hepatic_dataset import load_hepatic_dataset
 
 
-def train_model(model, device, train_loader, val_loader):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
-    optimizer = torch.optim.Adam(model.parameters(), 1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
 
-    max_epochs = 20
+    max_epochs = max_epochs
     val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
@@ -90,7 +91,12 @@ def train_model(model, device, train_loader, val_loader):
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(),  "models/IRCAD_finetuned_best_metric_model.pth")
+                    torch.save(model.state_dict(),  "models/{data_type}_{pt}_e{epochs}_m{max_epochs}_lr{lr}_bmm.pth".format(
+                        data_type = data_type, 
+                        pt = pt,
+                        max_epochs = max_epochs, 
+                        epochs = best_metric_epoch, 
+                        lr = lr))
                     print("saved new best metric model")
                 print(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
@@ -118,16 +124,31 @@ def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, va
     plt.savefig('reports/figures/train_model/training_graph.png')
 
 @click.command()
-@click.argument('ircad_path', type=click.Path(exists=True), default='/zhome/a2/4/155672/Desktop/Bachelor/3Dircadb1')
-def main(ircad_path):
+@click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic']), case_sensitive=False, default='IRCAD')
+# @click.argument('data_path', type=click.Path(exists=True), default='/work3/s204159/3Dircadb1/')
+@click.option('--pretrained', '-p', type=click.Path(exists=True), default='')
+@click.option('--epochs', '-e' type=click.INT, default=20)
+@click.option('--lr', '-lr', type=click.FLOAT, default=1e-4)
+def main(data_type, pretrained, epochs, lr):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_loader, val_loader = load_IRCAD_dataset(ircad_path='/zhome/a2/4/155672/Desktop/Bachelor/3Dircadb1',train_patients=[],val_patients=[1,4])
-    model = create_unet(device=device)
-
-    model, best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, train_loader, val_loader)
+    if data_type == 'IRCAD':
+        data_path = '/work3/s204159/3Dircadb1/'
+        train_loader, val_loader = load_IRCAD_dataset(data_path)#, train_patients=[],val_patients=[1,4])
+    elif data_type == 'hepatic':
+        data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
+        train_loader, val_loader = load_hepatic_dataset(data_path)
     
-    display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values)
+    if pretrained != '':
+        model = load_unet(pretrained, device=device)
+        pt = 'finetuned'
+    else:
+        model = create_unet(device=device)
+        pt = 'standard'
+
+    model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt)
+    
+    display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values)
 
 if __name__ == "__main__":
     set_determinism(seed=420)
