@@ -91,19 +91,29 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(),  "models/{data_type}_{pt}_e{epochs}_m{max_epochs}_lr{lr}_bmm.pth".format(
-                        data_type = data_type, 
-                        pt = pt,
-                        max_epochs = max_epochs, 
-                        epochs = best_metric_epoch, 
-                        lr = lr))
+                    torch.save({
+                            'model_state_dict'  : model.state_dict(),
+                            'spatial_dims'      : model.dimensions,
+                            'in_channels'       : model.in_channels,
+                            'out_channels'      : model.out_channels,
+                            'channels'          : model.channels,
+                            'strides'           : model.strides,
+                            'num_res_units'     : model.num_res_units,
+                            'epoch'             : best_metric_epoch
+                            }, "models/{data_type}_{pt}_e{max_epochs}_lr{lr:.0E}_bmm.pth".format(
+                                data_type       = data_type, 
+                                pt              = pt,
+                                max_epochs      = max_epochs, 
+                                lr              = lr
+                                )
+                            )
                     print("saved new best metric model")
                 print(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} "
                     f"at epoch: {best_metric_epoch}"
                 )
-        return model, best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values
+    return model, best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values
 
 def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values):
     print(f"train completed, best_metric: {best_metric:.4f} " f"at epoch: {best_metric_epoch}")
@@ -124,11 +134,11 @@ def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, va
     plt.savefig('reports/figures/train_model/training_graph.png')
 
 @click.command()
-@click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic']), case_sensitive=False, default='IRCAD')
+@click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
 # @click.argument('data_path', type=click.Path(exists=True), default='/work3/s204159/3Dircadb1/')
-@click.option('--pretrained', '-p', type=click.Path(exists=True), default='')
-@click.option('--epochs', '-e' type=click.INT, default=20)
-@click.option('--lr', '-lr', type=click.FLOAT, default=1e-4)
+@click.option('--pretrained', '-p', type=click.Path(exists=False), default='', help='Path to existing model if finetuning, defaults to none')
+@click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
+@click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
 def main(data_type, pretrained, epochs, lr):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -137,7 +147,7 @@ def main(data_type, pretrained, epochs, lr):
         train_loader, val_loader = load_IRCAD_dataset(data_path)#, train_patients=[],val_patients=[1,4])
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path)
+        train_loader, val_loader = load_hepatic_dataset(data_path, sample_size=10)
     
     if pretrained != '':
         model = load_unet(pretrained, device=device)
@@ -146,7 +156,7 @@ def main(data_type, pretrained, epochs, lr):
         model = create_unet(device=device)
         pt = 'standard'
 
-    model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt)
+    model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt)
     
     display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values)
 
