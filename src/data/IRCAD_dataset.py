@@ -80,7 +80,7 @@ val_transforms = Compose(
     ]
 )
 
-def load_IRCAD_dataset(ircad_path="/zhome/a2/4/155672/Desktop/Bachelor/3Dircadb1", train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
+def load_IRCAD_dataset(ircad_path, train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
     """Loads the IRCAD dataset from folder
 
     Args:
