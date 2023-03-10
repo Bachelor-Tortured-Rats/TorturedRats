@@ -27,7 +27,7 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt,model_save_path):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -99,8 +99,10 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                             'channels'          : model.channels,
                             'strides'           : model.strides,
                             'num_res_units'     : model.num_res_units,
-                            'epoch'             : best_metric_epoch
-                            }, "models/{data_type}_{pt}_e{max_epochs}_lr{lr:.0E}_bmm.pth".format(
+                            'epoch'             : best_metric_epoch,
+                            'best_metric'       : best_metric,
+                            }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_lr{lr:.0E}_bmm.pth".format(
+                                folder_path     = model_save_path,
                                 data_type       = data_type, 
                                 pt              = pt,
                                 max_epochs      = max_epochs, 
@@ -115,7 +117,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                 )
     return model, best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values
 
-def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values):
+def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, val_interval, metric_values,figures_save_path):
     print(f"train completed, best_metric: {best_metric:.4f} " f"at epoch: {best_metric_epoch}")
 
     plt.figure("train", (12, 6))
@@ -131,7 +133,7 @@ def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, va
     y = metric_values
     plt.xlabel("epoch")
     plt.plot(x, y)
-    plt.savefig('reports/figures/train_model/training_graph.png')
+    plt.savefig(f'{figures_save_path}/training_graph.png')
 
 @click.command()
 @click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
@@ -139,7 +141,9 @@ def display_model_training(best_metric ,best_metric_epoch, epoch_loss_values, va
 @click.option('--pretrained', '-p', type=click.Path(exists=False), default='', help='Path to existing model if finetuning, defaults to none')
 @click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
-def main(data_type, pretrained, epochs, lr):
+@click.option('--model_save_path', type=click.Path(exists=True), default='models', help='Path to folder for saving model')
+@click.option('--figures_save_path', type=click.Path(exists=True), default='reports/figures/train_model', help='Path to folder for saving figures')
+def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if data_type == 'IRCAD':
@@ -147,7 +151,7 @@ def main(data_type, pretrained, epochs, lr):
         train_loader, val_loader = load_IRCAD_dataset(data_path)#, train_patients=[],val_patients=[1,4])
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, sample_size=10)
+        train_loader, val_loader = load_hepatic_dataset(data_path)
     
     if pretrained != '':
         model = load_unet(pretrained, device=device)
@@ -156,9 +160,9 @@ def main(data_type, pretrained, epochs, lr):
         model = create_unet(device=device)
         pt = 'standard'
 
-    model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt)
+    model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt,model_save_path=model_save_path)
     
-    display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values)
+    display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values,figures_save_path)
 
 if __name__ == "__main__":
     set_determinism(seed=420)
