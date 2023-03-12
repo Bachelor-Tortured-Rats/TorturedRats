@@ -119,7 +119,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "mean_dice": metric, "train_loss": epoch_loss})
+                          "mean_dice": metric, "best_mean_dice": best_metric, "train_loss": epoch_loss})
                 logger.info(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} "
