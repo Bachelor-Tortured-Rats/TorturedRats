@@ -28,7 +28,7 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, wandb_logging):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -119,7 +119,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "mean dice": metric, "train_loss": epoch_loss})
+                          "mean_dice": metric, "train_loss": epoch_loss})
                 logger.info(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} "
@@ -150,7 +150,6 @@ def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, va
 
 @click.command()
 @click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
-# @click.argument('data_path', type=click.Path(exists=True), default='/work3/s204159/3Dircadb1/')
 @click.option('--pretrained', '-p', type=click.Path(exists=False), default='', help='Path to existing model if finetuning, defaults to none')
 @click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
@@ -185,7 +184,6 @@ def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, 
 
     if data_type == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        # , train_patients=[],val_patients=[1,4])
         train_loader, val_loader = load_IRCAD_dataset(data_path)
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
