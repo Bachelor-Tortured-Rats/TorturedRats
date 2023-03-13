@@ -21,10 +21,10 @@ def agent_train_model():
 
     if wandb.config.get('data_type') == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        train_loader, val_loader = load_IRCAD_dataset(data_path)
+        train_loader, val_loader = load_IRCAD_dataset(data_path, aug=wandb.config.get('augmentation'))
     elif wandb.config.get('data_type') == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path)
+        train_loader, val_loader = load_hepatic_dataset(data_path, aug=wandb.config.get('augmentation'))
 
     model, params = create_unet(
         device=device,
@@ -34,6 +34,8 @@ def agent_train_model():
         channels=wandb.config.get('channels'),
         strides=wandb.config.get('strides'),
         num_res_units=wandb.config.get('num_res_units'),
+        dropout=wandb.config.get('dropout'),
+        kernel_size=wandb.config.get('kernel_size')
     )
 
     train_model(
@@ -45,7 +47,8 @@ def agent_train_model():
         lr=wandb.config.get('lr'),
         data_type=wandb.config.get('data_type'),
         pt="",
-        model_save_path='models'
+        model_save_path='models',
+        aug=wandb.config.get('augmentation')
     )
 
 @click.command()
@@ -53,7 +56,7 @@ def agent_train_model():
 def start_sweep_agent(sweep_id):
     wandb.agent(sweep_id,
                 function=agent_train_model,
-                count=4,
+                count=100,
                 project='TorturedRats')
 
 if __name__ == "__main__":

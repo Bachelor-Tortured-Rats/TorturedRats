@@ -27,6 +27,9 @@ def load_unet(model_path: str, device,
         "channels": checkpoint['channels'],
         "strides": checkpoint['strides'],
         "num_res_units": checkpoint['num_res_units'],
+        "dropout": checkpoint.get('dropout', 0),
+        "kernel_size": checkpoint.get('kernel_size', 3),
+        "up_kernel_size": checkpoint.get('kernel_size', 3)
     }
 
     model = create_unet(device=device, **params)
@@ -42,6 +45,8 @@ def create_unet(device,
                 channels=(16, 32, 64, 128, 256),
                 strides=(2, 2, 2, 2),
                 num_res_units=2,
+                dropout=0,
+                kernel_size=3
                 ):
     """Loads a trained unet model
 
@@ -58,6 +63,9 @@ def create_unet(device,
         "channels": channels,
         "strides": strides,
         "num_res_units": num_res_units,
+        "dropout": dropout,
+        "kernel_size": kernel_size,
+        "up_kernel_size": kernel_size
     }
     model = UNet(norm=Norm.BATCH, **params)
     model.to(device)

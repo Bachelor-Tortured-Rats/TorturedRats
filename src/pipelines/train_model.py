@@ -28,7 +28,7 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -106,14 +106,19 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         'channels': model.channels,
                         'strides': model.strides,
                         'num_res_units': model.num_res_units,
+                        'dropout': model.dropout,
+                        'kernel_size': model.kernel_size,
                         'epoch': best_metric_epoch,
                         'best_metric': best_metric,
-                    }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_lr{lr:.0E}_bmm.pth".format(
+                    }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_bmm.pth".format(
                         folder_path=model_save_path,
                         data_type=data_type,
                         pt=pt,
                         max_epochs=max_epochs,
-                        lr=lr
+                        lr=lr,
+                        aug=aug,
+                        kernel_size=model.kernel_size,
+                        dropout=model.dropout
                     )
                     )
                     logger.info("saved new best metric model")
@@ -155,8 +160,11 @@ def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, va
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
 @click.option('--model_save_path', type=click.Path(exists=True), default='models', help='Path to folder for saving model')
 @click.option('--figures_save_path', type=click.Path(exists=True), default='reports/figures/train_model', help='Path to folder for saving figures')
-@click.option('--wandb_logging', '-l', click.Choice(['online', 'offline', 'disabled']), default="disabled", help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
-def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, wandb_logging):
+@click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
+@click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
+@click.option('--kernel_size', '-k', type=click.INT, default=3, help='Kernel size')
+@click.option('--dropout', '-dr', type=click.FLOAT, default=0, help='Dropout')
+def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, wandb_logging, augmentation, kernel_size, dropout):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # initializes logging
@@ -171,7 +179,10 @@ def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, 
         "epochs": epochs,
         "learning_rate": lr,
         "pretrained": pretrained,
-        "dataset": data_type
+        "dataset": data_type,
+        "augmentation": augmentation,
+        "kernel_size": kernel_size,
+        "dropout": dropout
     }
 
     run = wandb.init(
@@ -184,16 +195,16 @@ def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, 
 
     if data_type == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        train_loader, val_loader = load_IRCAD_dataset(data_path)
+        train_loader, val_loader = load_IRCAD_dataset(data_path, aug=augmentation)
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path)
+        train_loader, val_loader = load_hepatic_dataset(data_path, aug=augmentation)
 
     if pretrained != '':
         model, params = load_unet(pretrained, device=device)
         pt = 'finetuned'
     else:
-        model, params = create_unet(device=device)
+        model, params = create_unet(device=device, kernel_size=kernel_size, dropout=dropout)
         pt = 'standard'
 
     if wandb_logging:
@@ -202,7 +213,7 @@ def main(data_type, pretrained, epochs, lr, model_save_path, figures_save_path, 
         logger.info(f'using model with params: {params}')
 
     model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(
-        model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt, model_save_path=model_save_path)
+        model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt=pt, model_save_path=model_save_path, aug=augmentation)
 
     display_model_training(best_metric, best_metric_epoch, epoch_loss_values,
                            val_interval, metric_values, figures_save_path)
