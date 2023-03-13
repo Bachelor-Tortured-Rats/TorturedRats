@@ -90,3 +90,7 @@ target/
 
 #exclude wandb folder
 /wandb/
+
+# exclude hpc run files
+*.err
+*.out
