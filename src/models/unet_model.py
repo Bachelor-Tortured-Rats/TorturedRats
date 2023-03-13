@@ -28,11 +28,10 @@ def load_unet(model_path: str, device,
         "strides": checkpoint['strides'],
         "num_res_units": checkpoint['num_res_units'],
         "dropout": checkpoint.get('dropout', 0),
-        "kernel_size": checkpoint.get('kernel_size', 3),
-        "up_kernel_size": checkpoint.get('kernel_size', 3)
+        "kernel_size": checkpoint.get('kernel_size', 3)
     }
 
-    model = create_unet(device=device, **params)
+    model, params = create_unet(device=device, **params)
     model.load_state_dict(checkpoint['model_state_dict'])
     
     return model, params
