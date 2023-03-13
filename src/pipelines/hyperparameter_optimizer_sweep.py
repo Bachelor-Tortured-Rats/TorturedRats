@@ -35,7 +35,7 @@ def start_sweep():
     }
 
     # Initialize sweep by passing in config. (Optional) Provide a name of the project.
-    sweep_id = wandb.sweep(sweep=sweep_configuration, project='TorturedRats')
+    sweep_id = wandb.sweep(sweep=sweep_configuration, project='TorturedRats',entity='team-christian')
 
     logging.warning(f'Remember to close sweep with id {sweep_id} after use on wandb.ai')
     wandb.finish()

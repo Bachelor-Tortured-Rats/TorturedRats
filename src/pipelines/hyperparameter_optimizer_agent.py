@@ -57,7 +57,8 @@ def start_sweep_agent(sweep_id):
     wandb.agent(sweep_id,
                 function=agent_train_model,
                 count=100,
-                project='TorturedRats')
+                project='TorturedRats',
+                entity='team-christian')
 
 if __name__ == "__main__":
     set_determinism(seed=420)
