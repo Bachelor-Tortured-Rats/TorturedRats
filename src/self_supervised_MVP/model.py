@@ -16,7 +16,7 @@ class Autoencoder(nn.Module):
             nn.ReLU()
         )
 
-        
+        """
         # Decoder layers
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(4, 8, kernel_size=3, stride=2, padding=1, output_padding=1),
@@ -26,16 +26,16 @@ class Autoencoder(nn.Module):
             nn.ConvTranspose2d(16, 1, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
-        
+        """
 
     def forward(self, x):
         # Encoder
         x = self.encoder(x)
 
-        
+        """
         # Decoder
         x = self.decoder(x)
-
+        """
         return x
 
 
@@ -57,9 +57,7 @@ if __name__ == "__main__":
     # Pass the input through the model to obtain the reconstructed output
     output = autoencoder(x)
 
-    # Compute the reconstruction loss (e.g., using mean squared error)
-    loss_fn = nn.MSELoss()
-    loss = loss_fn(output, x)
+    print(output.shape)
     
     
 
