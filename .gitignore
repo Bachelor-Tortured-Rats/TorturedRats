@@ -94,3 +94,6 @@ target/
 # exclude hpc run files
 *.err
 *.out
+
+# as default ignore all saved models files .pth
+*.pth
