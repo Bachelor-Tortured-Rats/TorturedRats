@@ -28,6 +28,7 @@ train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
+        LabelFilterd(keys=["label"], applied_labels=[1]),
         ScaleIntensityRanged(
             keys=["image"],
             a_min=-57,
@@ -50,7 +51,6 @@ train_transforms = Compose(
             image_key="image",
             image_threshold=0,
         ),
-        LabelFilterd(keys=["label"], applied_labels=[1]),
         
         # user can also add other random transforms
         # RandAffined(
@@ -65,6 +65,7 @@ train_transforms_aug = Compose(
     [
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
+        LabelFilterd(keys=["label"], applied_labels=[1]),
         ScaleIntensityRanged(
             keys=["image"],
             a_min=-57,
@@ -105,7 +106,6 @@ train_transforms_aug = Compose(
             image_key="image",
             image_threshold=0,
         ),
-        LabelFilterd(keys=["label"], applied_labels=[1]),
         
         # user can also add other random transforms
         # RandAffined(
@@ -120,6 +120,7 @@ val_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
+        LabelFilterd(keys=["label"], applied_labels=[1]),
         ScaleIntensityRanged(
             keys=["image"],
             a_min=-57,
@@ -131,13 +132,13 @@ val_transforms = Compose(
         CropForegroundd(keys=["image", "label"], source_key="image"),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        LabelFilterd(keys=["label"], applied_labels=[1]),
     ]
 )
 val_transforms_aug = Compose(
     [
         LoadImaged(keys=["image", "label"]),
         EnsureChannelFirstd(keys=["image", "label"]),
+        LabelFilterd(keys=["label"], applied_labels=[1]),
         ScaleIntensityRanged(
             keys=["image"],
             a_min=-57,
@@ -167,7 +168,6 @@ val_transforms_aug = Compose(
             offsets=0.10,
             prob=0.2,
         ),
-        LabelFilterd(keys=["label"], applied_labels=[1]),
     ]
 )
 test_transforms = Compose([LoadImaged(keys=["image", "label"]),EnsureChannelFirstd(keys=["image", "label"]),])
