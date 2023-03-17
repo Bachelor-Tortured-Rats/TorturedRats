@@ -220,7 +220,7 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,sample_size=-1,aug=False)
     
     if aug:
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms_aug, cache_rate=1.0, num_workers=4)    
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)    ## do not validate on augmented data
     else:    
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=4)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)    
