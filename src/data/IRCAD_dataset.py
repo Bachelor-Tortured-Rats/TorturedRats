@@ -225,7 +225,7 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,sample_size=-1,aug=False)
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=4)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)    
         
-    train_loader = DataLoader(train_ds, batch_size=1, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
 
     return train_loader, val_loader
