@@ -21,7 +21,6 @@ from monai.data import CacheDataset, DataLoader
 
 import os
 import glob
-import math
 import pdb
 import numpy as np
 
@@ -183,14 +182,14 @@ def load_hepatic_dataset(data_dir,test_train_split=.8,sample_size=-1,aug=False):
         train_labels = train_labels[:sample_size]
 
     data_dicts = [{"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)]
-    train_files, val_files = data_dicts[:math.floor(len(data_dicts)*test_train_split)], data_dicts[math.floor(len(data_dicts)*test_train_split):]
+    train_files, val_files = data_dicts[:int(len(data_dicts)*test_train_split)], data_dicts[int(len(data_dicts)*test_train_split):]
     if aug:
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms_aug, cache_rate=1.0, num_workers=4)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4) ## do not validate on augmented data
     else:
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=4)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)
-    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
 
     return train_loader, val_loader

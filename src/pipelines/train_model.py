@@ -52,17 +52,20 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         model.train()
         epoch_loss = 0
         step = 0
+        # logger.info("before train_loader")
         for batch_data in train_loader:
             step += 1
             inputs, labels = (
                 batch_data["image"].to(device),
                 batch_data["label"].to(device),
             )
-
+            # logger.info("before optimizer.zero_grad")
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = loss_function(outputs, labels)
+            # logger.info("before loss.backward()")
             loss.backward()
+            # logger.info("before optimizer.step()")
             optimizer.step()
             epoch_loss += loss.item()
 
