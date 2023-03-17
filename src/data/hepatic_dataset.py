@@ -24,6 +24,11 @@ import glob
 import pdb
 import numpy as np
 
+
+def select_kidney(x):
+    return x == 1
+
+
 train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
@@ -37,7 +42,7 @@ train_transforms = Compose(
             b_max=1.0,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
+        CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         RandCropByPosNegLabeld(
@@ -74,7 +79,7 @@ train_transforms_aug = Compose(
             b_max=1.0,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
+        CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         RandZoomd(keys=["image", "label"], prob=0.3, min_zoom=1.3, max_zoom=1.5, mode=['area', 'nearest']),
@@ -129,7 +134,7 @@ val_transforms = Compose(
             b_max=1.0,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
+        CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
     ]
@@ -147,7 +152,7 @@ val_transforms_aug = Compose(
             b_max=1.0,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
+        CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         RandZoomd(keys=["image", "label"], prob=0.3, min_zoom=1.3, max_zoom=1.5, mode=['area', 'nearest']),
