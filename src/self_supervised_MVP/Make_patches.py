@@ -6,9 +6,8 @@ import numpy as np
 
 
 # Load an example scan
-exampleImage = nib.load("/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_458.nii.gz")
-image = exampleImage.get_fdata()
-
+#exampleImage = nib.load("/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_458.nii.gz")
+#image = exampleImage.get_fdata()
 
 # preprocessing
 ## lave patches fra et input volumen

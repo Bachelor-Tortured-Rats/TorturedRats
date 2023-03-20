@@ -184,7 +184,7 @@ val_transforms_aug = Compose(
     ]
 )
 
-def load_IRCAD_dataset(ircad_path, test_train_split=.8,sample_size=-1,aug=False):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
+def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1,aug=False):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
     """Loads the IRCAD dataset from folder
 
     Args:
@@ -197,10 +197,12 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,sample_size=-1,aug=False)
     ## Patients with venous and artery data
     # 1,4,5,6,7,8,9,17 (8 in total)
     patients = [1,4,5,6,7,8,9,17]
-    ## Take sample_size 
-    if sample_size  != -1:
-        train_patients = patients[:int(sample_size*test_train_split)]
-        val_patients = patients[int(sample_size*test_train_split):sample_size]
+
+    # Defines train and validation splits
+    # downsamples the dataset if train_label_proportion is not -1
+    if train_label_proportion  != -1:
+        train_patients = patients[:int(len(patients)*test_train_split*train_label_proportion)]
+        val_patients = patients[int(len(patients)*test_train_split):]
     else:
         train_patients = patients[:int(len(patients)*test_train_split)]
         val_patients = patients[int(len(patients)*test_train_split):]
