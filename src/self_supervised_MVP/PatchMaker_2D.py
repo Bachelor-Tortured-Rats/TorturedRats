@@ -68,13 +68,13 @@ def sample_random_smaller_patch(patch, smaller_patch_size = (3,3)):
   return patch[start_row:start_row+sample_height, start_col:start_col+sample_width]
 
 
-def make_sample(patches_with_labels):
+def make_sample(patches_with_labels, smaller_patch_size = (3,3)):
 
   center_patch = patches_with_labels['center']
   label = np.random.randint(1,8)
   random_patch = patches_with_labels[label]
 
-  return sample_random_smaller_patch(center_patch), sample_random_smaller_patch(random_patch), label
+  return sample_random_smaller_patch(center_patch, smaller_patch_size=smaller_patch_size), sample_random_smaller_patch(random_patch, smaller_patch_size=smaller_patch_size), label
 
 
 
