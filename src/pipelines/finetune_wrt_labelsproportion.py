@@ -37,11 +37,13 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 
     # load data
     if data_type == 'IRCAD':
-        train_loader, val_loader = load_IRCAD_dataset(
-            augmentation=augmentation, train_label_proportion=train_label_proportion)
+        data_path = '/work3/s204159/3Dircadb1/'
+        train_loader, val_loader = load_IRCAD_dataset(data_path,
+            aug=augmentation, train_label_proportion=train_label_proportion)
     elif data_type == 'hepatic':
-        train_loader, val_loader = load_hepatic_dataset(
-            augmentation=augmentation, train_label_proportion=train_label_proportion)
+        data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
+        train_loader, val_loader = load_hepatic_dataset(data_path,
+            aug=augmentation, train_label_proportion=train_label_proportion)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, params = load_unet(model_load_path, device=device)
@@ -58,12 +60,12 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 @click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
 @click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
-@click.option('--model_load_path', type=click.Path(exists=True), help='Path to saved model')
+@click.option('--model_load_path', type=click.Path(file_okay=True), help='Path to saved model')
 @click.option('--model_save_path', type=click.Path(exists=True), default='models', help='Path to folder for saving model')
-@click.option('--figures_save_path', type=click.Path(exists=True), default='reports/figures/finetune_wrt_labelproportion', help='Path to folder for saving figures')
+@click.option('--figures_save_path', type=click.Path(), default='reports/figures/finetune_wrt_labelproportion', help='Path to folder for saving figures')
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
 @click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
-@PythonLiteralOption('--label_proportions', '-lp', help='Which label proportions to use for finetuning')
+@click.option('--label_proportions','-lp', cls=PythonLiteralOption, default=[],help="Which label proportions to use for finetuning")
 def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_path, wandb_logging, augmentation, label_proportions):
     # initializes logging
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -74,6 +76,7 @@ def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_p
 
     best_mean_dice_list = []
     for label_proportion in label_proportions:
+        label_proportion = float(label_proportion)
         best_mean_dice = finetune_wrt_labelproportion(
             data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, label_proportion)
         best_mean_dice_list.append(best_mean_dice)
@@ -90,6 +93,7 @@ def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_p
 
 
 if __name__ == "__main__":
+    print('Running finetune_wrt_labelproportion.py')
     set_determinism(seed=420)
 
     main()

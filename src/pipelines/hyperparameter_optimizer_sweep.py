@@ -14,7 +14,7 @@ def start_sweep():
     # Define sweep config
     sweep_configuration = {
         'method': 'random',
-        'name': 'sweep_aug',
+        'name': 'sweep_aug_hepatic',
         'metric': {'goal': 'maximize', 'name': 'best_mean_dice'},
         'parameters':
         {
@@ -24,10 +24,10 @@ def start_sweep():
             'channels' : {'value': (16, 32, 64, 128, 256)},
             'strides' : {'value': (2, 2, 2, 2)},
             'num_res_units' : {'values': [0,2,4]},
-            'epochs': {'value': 300},
+            'epochs': {'value': 100},
             'lr': {'values': [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3]},
             # 'lr': {'max': 1e-2, 'min': 1e-5},
-            'data_type': {'value': 'IRCAD'},
+            'data_type': {'value': 'hepatic'},
             'augmentation': {'value': True},
             'dropout': {'values': [0.0, 0.1, 0.2, 0.4]},
             'kernel_size': {'values': [3, 5]}

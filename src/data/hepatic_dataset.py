@@ -178,16 +178,16 @@ val_transforms_aug = Compose(
 test_transforms = Compose([LoadImaged(keys=["image", "label"]),EnsureChannelFirstd(keys=["image", "label"]),])
 
 
-def load_hepatic_dataset(data_dir,test_train_split=.8,sample_size=-1,aug=False):
+def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,aug=False):
     train_images = sorted(glob.glob(os.path.join(data_dir, "imagesTr", "*.nii.gz")))
     train_labels = sorted(glob.glob(os.path.join(data_dir, "labelsTr", "*.nii.gz")))
 
-    if sample_size != -1:
-        train_images = train_images[:sample_size]
-        train_labels = train_labels[:sample_size]
-
     data_dicts = [{"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)]
     train_files, val_files = data_dicts[:int(len(data_dicts)*test_train_split)], data_dicts[int(len(data_dicts)*test_train_split):]
+    
+    if train_label_proportion != -1:
+        train_files = train_files[:int(len(train_files)*train_label_proportion)]
+
     if aug:
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=4)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4) ## do not validate on augmented data
