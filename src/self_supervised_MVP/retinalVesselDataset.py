@@ -6,6 +6,7 @@ import numpy as np
 from PatchMaker_2D import *
 from torch.utils.data import Dataset
 import torch
+import matplotlib.pyplot as plt
 
 class RetinalVesselDataset(Dataset):
   
@@ -25,9 +26,38 @@ class RetinalVesselDataset(Dataset):
     img = np.array(img)/255
     
     # Extract center patch and random patch 
-    patches, label = extract_patches_and_label_from_center(img, center = (200, 200), patch_size_inner=(30,30), patch_size_outer=(40,40))
+    patches, label, patch_locations = extract_patches_and_label_from_center(img, center = (400, 200), patch_size_inner=(80,80), patch_size_outer=(80,80))
     center = patches[0]
     offset_patch = patches[1]
+
+    # Create a figure and 3 subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+
+    # Plot the arrays in each subplot
+    ax1.imshow(img)
+    ax2.imshow(offset_patch)
+    ax3.imshow(center)
+    
+    for coordinates in patch_locations.values():
+      cv2.rectangle(img, coordinates[0], coordinates[1], (0, 0, 255), 2) # draw rectangle on main image
+    
+    #cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2) # draw rectangle on main image
+    #cv2.rectangle(img, (x11, y11), (x22, y22), (0, 0, 255), 2) # draw rectangle on main image
+    ax1.imshow(img)
+
+
+    # Add titles to each subplot
+    ax1.set_title('Image')
+    ax2.set_title(f'offset_patch_label: {np.argmax(label)}')
+    ax3.set_title('center')
+
+    # Add a title to the entire figure
+    fig.suptitle('Image with center and random patch')
+
+
+    # Show the plot
+    savepath = '/zhome/0f/f/137116/Desktop/TorturedRats/reports/figures/retinalVessel/' + str(idx)
+    plt.savefig(savepath)
     
     # This was our old version
     '''
@@ -72,6 +102,9 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     dataset = RetinalVesselDataset()
+    
+    dataset.__getitem__(2)
+    '''
     print(len(dataset))
     dataloader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
     
@@ -81,3 +114,4 @@ if __name__ == "__main__":
 
         if i == 1:
             break
+    '''

@@ -16,25 +16,33 @@ def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30
       list[numpy ndarray, numpy ndarray], list[int]: first list contains the patches, second list is the one hot encoded label
   """
   
-  x, y = center[0], center[1]
+  y, x = center[0], center[1]
+  patch_locations = {}
   patches = {}   
   count = 0 
-  
+  half_patch_size = patch_size_outer[0] // 2
   for i in [-1, 0, 1]:
     for j in [-1, 0, 1]:
       
       # Extract patch
-      patch = image[x + j*(patch_size_outer[0]) : x + (j+1)*(patch_size_outer[0]),
-                    y + i*(patch_size_outer[1]) : y + (i+1)*(patch_size_outer[1])]
+      patch = image[y + i*(patch_size_outer[0]) - half_patch_size : y + i*(patch_size_outer[0]) + half_patch_size,
+                    x + j*(patch_size_outer[1]) - half_patch_size : x + j*(patch_size_outer[1]) + half_patch_size]
       patches[count] = patch
+      patch_locations[count] = [(y + i*(patch_size_outer[0]) - half_patch_size, x + j*(patch_size_outer[1]) - half_patch_size), 
+                                (y + i*(patch_size_outer[0]) + half_patch_size, x + j*(patch_size_outer[1]) + half_patch_size)]
+      print(patch_locations)
       count += 1
   
-  # Extract center patch
+  # Extract center patch and remove it from 
   center_patch = patches[4]
   
-  # Extract random patch
-  idx = np.random.randint(0,7)
-  label = np.zeros(8)
+  # Extract random patch from remaining ones
+  # idx = np.random.randint(0,7)
+  idx = random.choice([0, 1, 2, 3, 5, 6, 7])
+  offset_patch = patches[idx]
+
+  # Extract label on chosen patch
+  label = np.zeros(9)
   label[idx] = 1
   offset_patch = patches[idx]
 
@@ -45,7 +53,7 @@ def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30
   center_patch = center_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
   offset_patch = offset_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
 
-  return [center_patch, offset_patch], label
+  return [center_patch, offset_patch], label, patch_locations
   
   
 ''' THE FOLLOWING ARE UTILITY FUNCTIONS WE MIGHT USE LATER BUT NOT ATM'''
