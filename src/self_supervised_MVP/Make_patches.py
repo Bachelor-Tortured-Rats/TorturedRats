@@ -27,6 +27,21 @@ def extract_patches(image, patch_size=(20,20,20)):
     return patches
   
   
+  
+def extract_center_patch_and_context_labels(patches, center_patch_coordinates):
+    
+    # Extract the center patch 
+    center_patch = patches[center_patch_coordinates]
+    
+    # Make a dictionary with sorrounding patches numbered
+    
+    
+
+
+
+
+
+
 # Return 
 #patches = extract_patches(image, patch_size = (20,20,20))
 #print(patches[(2,2,2)])
