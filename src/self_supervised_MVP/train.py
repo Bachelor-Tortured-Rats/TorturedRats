@@ -46,8 +46,29 @@ def train_loop(encoder, prediction_head, train_loader, optimizer, device):
 if __name__ == "__main__":
 
     # Load the CIFAR-10 dataset
-    train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    #train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    #train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+
+    # A helper function that take an index and a length and returns a one-hot vector
+    def one_hot(index, length):
+        vector = torch.zeros(length)
+        vector[index] = 1
+        return vector
+
+    # Make a custom dataset for finding bugs
+    class CustomDataset(torch.utils.data.Dataset):
+        def __init__(self, data, labels):
+            self.data = torch.randn(100, 2, 40, 40)
+            self.labels = torch.randn(1, 8)
+
+        def __getitem__(self, index):
+            return self.data[index], self.labels[index]
+
+        def __len__(self):
+            return len(self.data)
+
+    # Make a random 8d one-hot vector
+
 
     # Set the device to use for training
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,3 +82,5 @@ if __name__ == "__main__":
     for epoch in range(10):
         train_loss = train_loop(encoder, prediction_head, train_loader, optimizer, device, loss_fn=patch_location_loss)
         print(f"Epoch {epoch+1}, Loss: {train_loss:.4f}")
+
+    

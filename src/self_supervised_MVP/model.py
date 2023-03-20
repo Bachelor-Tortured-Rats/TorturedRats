@@ -37,6 +37,8 @@ class Pred_head(nn.Module):
     def __init__(self):
         super(Pred_head, self).__init__()
         self.layers = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -47,7 +49,9 @@ class Pred_head(nn.Module):
             nn.Softmax(dim=1)
         )
 
-    def forward(self, x):
+    def forward(self, patches_A, patches_B):
+        # Stack patches as one vector
+        x = torch.cat((patches_A, patches_B), dim=1)
         return self.layers(x)
 
 
