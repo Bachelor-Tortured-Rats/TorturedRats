@@ -1,30 +1,20 @@
 import numpy as np
 import random
 
+''' THIS IS THE FUNCTION WE WILL PROBABLY USE'''
+def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30), patch_size_outer=(40,40)):
+  """ Extracts a center patch, a random patch surounding the center patch, 
+      as well as the one hot encoded label from an image. 
 
-def extract_2D_patches(image, patch_size=(4,4)):
-    """
-    Extracts all 2D patches of the given patch size from a 2D image.
-    
-    Args:
-      image: 2d image 
-      patch_size: tuple with 2 elements
-    
-    Returns:
-      dictionary: keys are patch coordinates and values are patch parts of image
-    """
+  Args:
+      image (numpy ndarray): a 2D image
+      center (tuple): coordinates of the pixel in the center of the center patch
+      patch_size_inner (tuple, optional): size of the actual patches. Defaults to (30,30).
+      patch_size_outer (tuple, optional): size of the outer patch from which a random subpatch is sampled. Defaults to (40,40).
 
-    patches = {}
-    x_patches, y_patches = image.shape[0] // patch_size[0], image.shape[1] // patch_size[1]
-    
-    for y in range(y_patches):
-      for x in range(x_patches):
-        patch = image[x*patch_size[0]:(x+1)*patch_size[0], y*patch_size[1]:(y+1)*patch_size[1]]
-        patches[(x, y)] = patch
-
-    return patches
-
-def make_sample_from_center(image, center, patch_size_inner=(30,30), patch_size_outer=(40,40)):
+  Returns:
+      list[numpy ndarray, numpy ndarray], list[int]: first list contains the patches, second list is the one hot encoded label
+  """
   
   x, y = center[0], center[1]
   patches = {}   
@@ -36,9 +26,7 @@ def make_sample_from_center(image, center, patch_size_inner=(30,30), patch_size_
       # Extract patch
       patch = image[x + j*(patch_size_outer[0]) : x + (j+1)*(patch_size_outer[0]),
                     y + i*(patch_size_outer[1]) : y + (i+1)*(patch_size_outer[1])]
-      
       patches[count] = patch
-      
       count += 1
   
   # Extract center patch
@@ -58,9 +46,31 @@ def make_sample_from_center(image, center, patch_size_inner=(30,30), patch_size_
   offset_patch = offset_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
 
   return [center_patch, offset_patch], label
-      
   
   
+''' THE FOLLOWING ARE UTILITY FUNCTIONS WE MIGHT USE LATER BUT NOT ATM'''
+def extract_2D_patches(image, patch_size=(4,4)):
+  """
+  Extracts all 2D patches of the given patch size from a 2D image.
+  
+  Args:
+    image: 2d image 
+    patch_size: tuple with 2 elements
+  
+  Returns:
+    dictionary: keys are patch coordinates and values are patch parts of image
+  """
+
+  patches = {}
+  x_patches, y_patches = image.shape[0] // patch_size[0], image.shape[1] // patch_size[1]
+  
+  for y in range(y_patches):
+    for x in range(x_patches):
+      patch = image[x*patch_size[0]:(x+1)*patch_size[0], y*patch_size[1]:(y+1)*patch_size[1]]
+      patches[(x, y)] = patch
+
+  return patches 
+
 def extract_patch_labels_from_centerpatch(patches, centerPatchCoodinates):
   """Creates and returns a dictionary of labels for patches around a center patch 
 
@@ -93,7 +103,6 @@ def extract_patch_labels_from_centerpatch(patches, centerPatchCoodinates):
       
   return patch_labels
 
-
 def sample_random_smaller_patch(patch, smaller_patch_size = (3,3)):
 
   sample_height, sample_width = smaller_patch_size[0], smaller_patch_size[1]    # size of the smaller array to sample
@@ -102,7 +111,6 @@ def sample_random_smaller_patch(patch, smaller_patch_size = (3,3)):
   start_col = random.randint(0, patch.shape[1] - sample_width)
 
   return patch[start_row:start_row+sample_height, start_col:start_col+sample_width]
-
 
 def make_sample(patches_with_labels, smaller_patch_size = (3,3)):
 

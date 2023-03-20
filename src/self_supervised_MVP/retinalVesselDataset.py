@@ -24,6 +24,13 @@ class RetinalVesselDataset(Dataset):
     img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     img = np.array(img)/255
     
+    # Extract center patch and random patch 
+    patches, label = extract_patches_and_label_from_center(img, center = (200, 200), patch_size_inner=(30,30), patch_size_outer=(40,40))
+    center = patches[0]
+    offset_patch = patches[1]
+    
+    # This was our old version
+    '''
     # Create all patches
     patches = extract_2D_patches(img, patch_size=(40,40))
 
@@ -32,14 +39,16 @@ class RetinalVesselDataset(Dataset):
 
     # Make a sample
     center, patch, label = make_sample(patch_labels, smaller_patch_size=(30,30))
+    '''
+    
     
     # Convert to torch tensors
     center = torch.from_numpy(np.expand_dims(center, 0))
-    patch = torch.from_numpy(np.expand_dims(patch, 0))
+    offset_patch = torch.from_numpy(np.expand_dims(offset_patch, 0))
     label = torch.from_numpy(label)
 
     # Create a label
-    return center, patch, label
+    return center, offset_patch, label
 
 def RetinalVessel_collate_fn(batch):
   """
