@@ -5,7 +5,7 @@
 ### -- set the job Name --
 #BSUB -J finetune_wrt_labelsproportion
 ### -- ask for number of cores (default: 1) --
-#BSUB -n 4
+#BSUB -n 1
 ### -- Select the resources: 1 gpu in exclusive process mode --
 #BSUB -gpu "num=1:mode=exclusive_process"
 ### -- set walltime limit: hh:mm --  maximum 24 hours for GPU-queues right now
@@ -34,4 +34,4 @@ module load ffmpeg/4.2.2
 
 
 source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
-python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/finetune_wrt_labelsproportion.py -d hepatic --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth"  -a -l "online" -lp '[.1,.2,.3,.5,1]' -e "6"
+python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/finetune_wrt_labelsproportion.py -d hepatic --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" -lr "1e-5" -a -l "online" -lp '[.1,.25,.5,.75,1]' -e "999999" --terminate_at_step_count "2410"

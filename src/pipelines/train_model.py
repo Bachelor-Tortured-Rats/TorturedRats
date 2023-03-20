@@ -28,7 +28,7 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
     optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -45,6 +45,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
     metric_values = []
     post_pred = Compose([AsDiscrete(argmax=True, to_onehot=2)])
     post_label = Compose([AsDiscrete(to_onehot=2)])
+    total_step_count = 0
 
     for epoch in range(max_epochs):
         logger.info("-" * 10)
@@ -55,6 +56,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         # logger.info("before train_loader")
         for batch_data in train_loader:
             step += 1
+            total_step_count += 1
+            
             inputs, labels = (
                 batch_data["image"].to(device),
                 batch_data["label"].to(device),
@@ -69,10 +72,15 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
             optimizer.step()
             epoch_loss += loss.item()
 
+            # breaks out of the current epoch if the total step count is greater than the terminate_at_step_count
+            if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
+                break
+
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
 
-        if (epoch + 1) % val_interval == 0:
+        # forces the model to validate if the total step count is greater than the terminate_at_step_count.
+        if (epoch + 1) % val_interval == 0 or (terminate_at_step_count is not None and total_step_count > terminate_at_step_count):
             model.eval()
             with torch.no_grad():
                 for val_data in val_loader:
@@ -133,6 +141,11 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     f"\nbest mean dice: {best_metric:.4f} "
                     f"at epoch: {best_metric_epoch}"
                 )
+
+        # stops training if the total step count is greater than the terminate_at_step_count.
+        if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
+            break
+
     return model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values
 
 
