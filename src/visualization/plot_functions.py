@@ -190,5 +190,3 @@ def displaySlice(CT_image, angle, slice_depth, mask = None, alpha = 0.6, colors 
         mask = eval("mask" + dimension_choice)
 
     display_image(CT_image, mask, colors=colors, alpha=alpha, display=True)
-
-
