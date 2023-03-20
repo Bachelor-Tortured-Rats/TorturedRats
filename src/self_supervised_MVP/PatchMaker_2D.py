@@ -42,7 +42,7 @@ def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30
   offset_patch = patches[idx]
 
   # Extract label on chosen patch
-  label = np.zeros(9)
+  label = np.zeros(9) # 9 for now, should be 8
   label[idx] = 1
   offset_patch = patches[idx]
 
@@ -53,7 +53,7 @@ def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30
   center_patch = center_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
   offset_patch = offset_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
 
-  return [center_patch, offset_patch], label, patch_locations
+  return [center_patch, offset_patch], label, patch_locations, patches
   
   
 ''' THE FOLLOWING ARE UTILITY FUNCTIONS WE MIGHT USE LATER BUT NOT ATM'''
