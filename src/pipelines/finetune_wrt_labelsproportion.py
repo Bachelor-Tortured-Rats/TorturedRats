@@ -54,6 +54,8 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
     model, best_metric, _, _, _, _ = train_model(
         model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='finetuned', model_save_path=model_save_path, aug=augmentation,terminate_at_step_count=terminate_at_step_count)
 
+    wandb.finish()
+
     return best_metric
 
 @click.command()

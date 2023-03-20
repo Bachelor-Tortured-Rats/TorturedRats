@@ -74,6 +74,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
 
             # breaks out of the current epoch if the total step count is greater than the terminate_at_step_count
             if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
+                logging.info("Terminating training at step count: {}".format(total_step_count))
                 break
 
         epoch_loss /= step
