@@ -24,7 +24,43 @@ def extract_2D_patches(image, patch_size=(4,4)):
 
     return patches
 
+def make_sample_from_center(image, center, patch_size_inner=(30,30), patch_size_outer=(40,40)):
+  
+  x, y = center[0], center[1]
+  patches = {}   
+  count = 0 
+  
+  for i in [-1, 0, 1]:
+    for j in [-1, 0, 1]:
+      
+      # Extract patch
+      patch = image[x + j*(patch_size_outer[0]) : x + (j+1)*(patch_size_outer[0]),
+                    y + i*(patch_size_outer[1]) : y + (i+1)*(patch_size_outer[1])]
+      
+      patches[count] = patch
+      
+      count += 1
+  
+  # Extract center patch
+  center_patch = patches[4]
+  
+  # Extract random patch
+  idx = np.random.randint(0,7)
+  label = np.zeros(8)
+  label[idx] = 1
+  offset_patch = patches[idx]
 
+  # Sample random smaller patch within larger patch
+  start_row = random.randint(0, patch.shape[0] - patch_size_inner[0])
+  start_col = random.randint(0, patch.shape[1] - patch_size_inner[1])
+
+  center_patch = center_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
+  offset_patch = offset_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
+
+  return [center_patch, offset_patch], label
+      
+  
+  
 def extract_patch_labels_from_centerpatch(patches, centerPatchCoodinates):
   """Creates and returns a dictionary of labels for patches around a center patch 
 
@@ -87,7 +123,12 @@ if __name__ == "__main__":
 
   arr = np.arange(1, 15*15+1).reshape((15, 15))
   print(f'Test array: \n{arr}')
-  
+
+  data, label = make_sample_from_center(image=arr, center=(6,6), patch_size_inner=(2,2), patch_size_outer=(4,4))
+  print(f'label is: {label}')
+  print(f'data is: {data}')
+
+  '''
   # Create all patches
   patches = extract_2D_patches(arr)
 
@@ -97,6 +138,8 @@ if __name__ == "__main__":
   # Make a sample
   center, patch, label = make_sample(patch_labels)
   
+  
   print(f'Center patch is: {center}')
   print(f'patch is: {patch}')
   print(f'label is: {label}')
+  '''
