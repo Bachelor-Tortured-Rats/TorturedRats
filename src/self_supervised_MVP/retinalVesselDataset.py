@@ -22,11 +22,12 @@ class RetinalVesselDataset(Dataset):
     
     # Load image from path and normalize
     img_path = self.paths[idx]
-    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(img_path)#, cv2.IMREAD_GRAYSCALE)
     img = np.array(img)/255
-    
+    ### ASBJØRN TESTS
+    """
     # Extract center patch and random patch 
-    patches, label, patch_locations = extract_patches_and_label_from_center(img, center = (400, 200), patch_size_inner=(80,80), patch_size_outer=(80,80))
+    patches, label, patch_locations, _ = extract_patches_and_label_from_center(img, center = (400, 200), patch_size_inner=(80,80), patch_size_outer=(80,80))
     center = patches[0]
     offset_patch = patches[1]
 
@@ -56,8 +57,9 @@ class RetinalVesselDataset(Dataset):
 
 
     # Show the plot
-    savepath = '/zhome/0f/f/137116/Desktop/TorturedRats/reports/figures/retinalVessel/' + str(idx)
+    savepath = 'reports/figures/retinalVessel/' + str(idx)
     plt.savefig(savepath)
+    """
     
     # This was our old version
     '''
@@ -70,15 +72,15 @@ class RetinalVesselDataset(Dataset):
     # Make a sample
     center, patch, label = make_sample(patch_labels, smaller_patch_size=(30,30))
     '''
-    
+    center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40)
     
     # Convert to torch tensors
-    center = torch.from_numpy(np.expand_dims(center, 0))
-    offset_patch = torch.from_numpy(np.expand_dims(offset_patch, 0))
-    label = torch.from_numpy(label)
+    #center = torch.from_numpy(np.expand_dims(center, 0))
+    #offset_patch = torch.from_numpy(np.expand_dims(offset_patch, 0))
+    label = torch.tensor(label)
 
     # Create a label
-    return center, offset_patch, label
+    return center_patch, offset_patch, label
 
 def RetinalVessel_collate_fn(batch):
   """
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     dataset = RetinalVesselDataset()
     
     dataset.__getitem__(2)
-    '''
+    
     print(len(dataset))
     dataloader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
     
@@ -114,4 +116,4 @@ if __name__ == "__main__":
 
         if i == 1:
             break
-    '''
+    

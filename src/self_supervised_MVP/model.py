@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
-from Make_patches import *
 
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
@@ -32,6 +31,47 @@ class Encoder(nn.Module):
         
         return x
 
+class BeefierEncoder(nn.Module):
+    def __init__(self):
+        super(BeefierEncoder, self).__init__()
+        
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
+        )
+        
+        self.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1,1))
+
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = self.avg_pool(x)
+        x = x.view(x.size(0), -1)
+        
+        return x
 
 class Pred_head(nn.Module):
     def __init__(self):
@@ -46,7 +86,7 @@ class Pred_head(nn.Module):
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, 8),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1)
         )
 
     def forward(self, patches_A, patches_B):
@@ -54,6 +94,28 @@ class Pred_head(nn.Module):
         x = torch.cat((patches_A, patches_B), dim=1)
         return self.layers(x)
 
+class Beefier_Pred_head(nn.Module):
+    def __init__(self):
+        super(Beefier_Pred_head, self).__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 8),
+            #nn.Softmax(dim=1)
+        )
+
+    def forward(self, patches_A, patches_B):
+        # Stack patches as one vector
+        x = torch.cat((patches_A, patches_B), dim=1)
+        return self.layers(x)
 
 
 
