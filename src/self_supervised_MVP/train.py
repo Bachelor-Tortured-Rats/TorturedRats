@@ -21,8 +21,13 @@ def train_loop(encoder, prediction_head, train_loader, optimizer, device):
     # Number of predictions
     total = 0
 
+    # loss stats
+    total_loss = 0
+    steps = 0
+
     # Loop over the training data
     for data, labels in train_loader:
+        steps += 1
         
         data_patch_center, data_patch_offset = data
         # Move the data and labels to the device
@@ -47,6 +52,8 @@ def train_loop(encoder, prediction_head, train_loader, optimizer, device):
 
         # Compute the loss based on the relative location of the patches
         loss = F.cross_entropy(prediction.squeeze(), labels.long())
+        total_loss += loss.item()
+
 
         # Compute the number of correct predictions
         _, predicted = torch.max(prediction.data, 1)
@@ -62,7 +69,7 @@ def train_loop(encoder, prediction_head, train_loader, optimizer, device):
         torch.save(encoder_state_dict, 'encoder_state_dict.pth')
         
     # Return the average loss over the training data
-    return correct / total
+    return correct / total, total_loss / steps
 
 
 if __name__ == "__main__":
@@ -90,9 +97,11 @@ if __name__ == "__main__":
     # Train the models using the custom loss function and the train loop
     longrun_avg = list(np.zeros(100))
     for epoch in range(10000):
-        train_loss = train_loop(encoder, prediction_head, train_loader, optimizer, device)
+        train_loss, loss = train_loop(encoder, prediction_head, train_loader, optimizer, device)
         longrun_avg.append(train_loss)
         longrun_avg.pop(0)
         print(f"Epoch {epoch+1}, Accuracy: {train_loss:.4f}, Avg Accuracy: {np.mean(longrun_avg):.4f}")
+        print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
+        
 
     
