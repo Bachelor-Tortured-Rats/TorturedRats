@@ -24,7 +24,7 @@ def generate_patch_pair_MONAI(img, outer_patch_width, inner_patch_width):
   
   # Crop large patch larger than outer patch
   primary_crop = RandSpatialCrop(primary_crop_shape, random_size=False)
-  #primary_crop.set_random_state(42)
+  primary_crop.set_random_state(42)
   img = primary_crop(img)
 
   center_patch = img
