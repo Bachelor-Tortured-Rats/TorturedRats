@@ -21,7 +21,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr):
     optimizer = torch.optim.Adam(model.parameters(), lr)
 
     epoch_loss_values = []
-    val_interval = 2
+    val_interval = 5
     metric_values = []
     best_metric = -1
     best_metric_epoch = -1
@@ -78,9 +78,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr):
                     best_metric_epoch = epoch + 1
                     
                 logger.info(
-                    f"current epoch: {epoch + 1} current mean dice: {val_loss:.4f}"
-                    f"\nbest mean dice: {best_metric:.4f} "
-                    f"at epoch: {best_metric_epoch}"
+                    f"current val loss: {val_loss:.4f} at epoch {epoch + 1} - best val loss: {best_metric:.4f} at epoch: {best_metric_epoch}"
                 )
 
     return None
@@ -103,7 +101,9 @@ if __name__ == "__main__":
     selfSupervisedModel = SelfSupervisedModel(encoder, prediction_head)
     selfSupervisedModel.to(device)
 
-    dataset = RetinalVesselDataset()
-    train_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
+    dataset_train = RetinalVesselDataset(train_data=True)
+    dataset_val = RetinalVesselDataset(train_data=False)
+    train_loader = DataLoader(dataset_train, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
+    val_loader = DataLoader(dataset_val, batch_size=4, shuffle=False, collate_fn=RetinalVessel_collate_fn)
 
-    train_model(selfSupervisedModel, device, train_loader,train_loader, max_epochs=10, lr=0.0001)
+    train_model(selfSupervisedModel, device, train_loader,val_loader, max_epochs=100, lr=1e-5)

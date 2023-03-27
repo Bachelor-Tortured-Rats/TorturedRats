@@ -10,10 +10,13 @@ import matplotlib.pyplot as plt
 
 class RetinalVesselDataset(Dataset):
   
-  def __init__(self):
+  def __init__(self, train_data=True):
     
     # load the paths to the training images 
-    self.paths = ['DRIVE/training/images/%02d_training.tif' % i for i in range(21,40)]
+    if train_data:
+      self.paths = [f'DRIVE/training/images/{i:02d}_training.tif' for i in range(21,40)]
+    else:
+      self.paths = [f'DRIVE/test/images/{i:02d}_test.tif' for i in range(1,21)]
 
   def __len__(self):
       return len(self.paths)
@@ -27,7 +30,8 @@ class RetinalVesselDataset(Dataset):
 
     center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40, num_pairs=10)
     label = torch.tensor(label)
-    return center_patch.as_tensor().float(), offset_patch.as_tensor().float(), label
+
+    return center_patch, offset_patch, label
 
 def RetinalVessel_collate_fn(batch):
   """
@@ -46,8 +50,8 @@ def RetinalVessel_collate_fn(batch):
   center_patches = torch.stack(center_patches, dim=0)
   offset_patches = torch.stack(offset_patches, dim=0)
   labels = torch.stack(labels, dim=0)
-      
-  return (center_patches, offset_patches), labels
+
+  return (center_patches.float(), offset_patches.float()), labels
     
 if __name__ == "__main__":
     
