@@ -309,15 +309,3 @@ class UNetEnc(nn.Module):
 #         "kernel_size": kernel_size,
 #         "up_kernel_size": kernel_size
 #     }
-
-UNet1 = UNetEnc(spatial_dims=3,
-                in_channels=1,
-                out_channels=2,
-                channels=(16, 32, 64, 128, 256),
-                strides=(2, 2, 2, 2),
-                num_res_units=2,
-                dropout=0,
-                kernel_size=3,
-                norm=Norm.BATCH,)
-
-    print(UNet1)
