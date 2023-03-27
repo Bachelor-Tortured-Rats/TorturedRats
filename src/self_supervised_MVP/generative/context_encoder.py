@@ -1,191 +1,183 @@
 import click
-import argparse
 import os
 import numpy as np
 import math
-
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from PIL import Image
-
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
-
-from data import *
-from models import *
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+from data import *
+from models import *
+
+
 #os.makedirs("images", exist_ok=True)
+# Define image directories
 img_train_dir = "/zhome/0f/f/137116/Desktop/TorturedRats/DRIVE/training/images/"
 img_test_dir = "/zhome/0f/f/137116/Desktop/TorturedRats/DRIVE/test/images/"
 
-'''
+
 @click.command()
-@click.option('--n_epochs', '-d', type=int, default=200, help='number of epochs of training')
-@click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
-@click.option('--terminate_at_step_count', '-t', type=click.INT, default=None, help="Terminate training after this many steps, defaults to None")
+@click.option('--n_epochs', '-n_epochs', type=click.INT, default=200, help='number of epochs of training')
+@click.option('--batch_size', '-batch_size', type=click.INT, default=8, help='size of the batches')
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
-@click.option('--model_load_path', type=click.Path(file_okay=True), help='Path to saved model')
-@click.option('--model_save_path', type=click.Path(exists=True), default='models', help='Path to folder for saving model')
-@click.option('--figures_save_path', type=click.Path(), default='reports/figures/finetune_wrt_labelproportion', help='Path to folder for saving figures')
-@click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
-@click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
-@click.option('--label_proportions','-lp', cls=PythonLiteralOption, default=[],help="Which label proportions to use for finetuning")
-'''
+@click.option('--b1', '-b1', type=click.FLOAT, default=0.5, help="adam: decay of first order momentum of gradient")
+@click.option('--b2', '-b2', type=click.FLOAT, default=0.999, help="adam: decay of first order momentum of gradient")
+@click.option('--n_cpu', '-n_cpu', type=click.INT, default=4, help="number of cpu threads to use during batch generation")
+@click.option('--latent_dim', '-latent_dim', type=click.INT, default=100, help="dimensionality of the latent space")
+@click.option('--img_size', '-img_size', type=click.INT, default=128, help="size of each image dimension")
+@click.option('--mask_size', '-mask_size', type=click.INT, default=64, help="size of random mask")
+@click.option('--channels', '-channels', type=click.INT, default=3, help="number of image channels")
+@click.option('--sample_interval', '-sample_interval', type=click.INT, default=500, help="interval between image sampling")
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
-parser.add_argument("--dataset_name", type=str, default="img_align_celeba", help="name of the dataset")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
-parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
-parser.add_argument("--n_cpu", type=int, default=4, help="number of cpu threads to use during batch generation")
-parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
-parser.add_argument("--img_size", type=int, default=128, help="size of each image dimension")
-parser.add_argument("--mask_size", type=int, default=64, help="size of random mask")
-parser.add_argument("--channels", type=int, default=3, help="number of image channels")
-parser.add_argument("--sample_interval", type=int, default=500, help="interval between image sampling")
-opt = parser.parse_args()
-print(opt)
+def main(n_epochs, batch_size, lr, b1, b2, n_cpu, latent_dim, img_size, mask_size, channels, sample_interval):
+  
+  # Check if CUDA is available
+  cuda = True if torch.cuda.is_available() else False
 
-cuda = True if torch.cuda.is_available() else False
+  # Calculate output of image discriminator (PatchGAN)
+  patch_h, patch_w = int(mask_size / 2 ** 3), int(mask_size / 2 ** 3)
+  patch = (1, patch_h, patch_w)
+        
+  def weights_init_normal(m):
+      classname = m.__class__.__name__
+      if classname.find("Conv") != -1:
+          torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+      elif classname.find("BatchNorm2d") != -1:
+          torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+          torch.nn.init.constant_(m.bias.data, 0.0)
 
-# Calculate output of image discriminator (PatchGAN)
-patch_h, patch_w = int(opt.mask_size / 2 ** 3), int(opt.mask_size / 2 ** 3)
-patch = (1, patch_h, patch_w)
+  # Loss function
+  adversarial_loss = torch.nn.MSELoss()
+  reconstruction_loss = torch.nn.L1Loss()
 
-print(f'patch: {patch}')
-      
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find("BatchNorm2d") != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+  # Initialize generator and discriminator
+  generator = Generator(channels=channels)
+  discriminator = Discriminator(channels=channels)
 
+  # Initialize weights
+  generator.apply(weights_init_normal)
+  discriminator.apply(weights_init_normal)
 
-# Loss function
-adversarial_loss = torch.nn.MSELoss()
-pixelwise_loss = torch.nn.L1Loss()
-
-# Initialize generator and discriminator
-generator = Generator(channels=opt.channels)
-discriminator = Discriminator(channels=opt.channels)
-
-if cuda:
+  # If cuda is available use cuda
+  if cuda:
     generator.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
-    pixelwise_loss.cuda()
+    reconstruction_loss.cuda()
+    
+  # Define transforms
+  transforms_ = [
+      transforms.Resize((img_size, img_size), Image.BICUBIC),
+      transforms.ToTensor(),
+      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+  ]
 
-# Initialize weights
-generator.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
+  dataloader = DataLoader(
+      ImageDataset(img_train_dir, transforms_=transforms_),
+      batch_size=batch_size,
+      shuffle=True,
+      num_workers=n_cpu,
+  )
+  test_dataloader = DataLoader(
+      ImageDataset(img_test_dir, transforms_=transforms_, mode="val"),
+      batch_size=12,
+      shuffle=True,
+      num_workers=1,
+  )
 
-# Dataset loader
-transforms_ = [
-    transforms.Resize((opt.img_size, opt.img_size), Image.BICUBIC),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-]
+  # Optimizers
+  optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr, betas=(b1, b2))
+  optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
 
-dataset = ImageDataset(img_train_dir, transforms_=transforms_)
-print(f'len dataset: {len(dataset)}')
-
-dataloader = DataLoader(
-    ImageDataset(img_train_dir, transforms_=transforms_),
-    batch_size=opt.batch_size,
-    shuffle=True,
-    num_workers=opt.n_cpu,
-)
-test_dataloader = DataLoader(
-    ImageDataset(img_test_dir, transforms_=transforms_, mode="val"),
-    batch_size=12,
-    shuffle=True,
-    num_workers=1,
-)
-
-# Optimizers
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+  # Define Tensor type
+  Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 
-def save_sample(batches_done):
-    samples, masked_samples, i = next(iter(test_dataloader))
-    samples = Variable(samples.type(Tensor))
-    masked_samples = Variable(masked_samples.type(Tensor))
-    i = i[0].item()  # Upper-left coordinate of mask
-    # Generate inpainted image
-    gen_mask = generator(masked_samples)
-    filled_samples = masked_samples.clone()
-    filled_samples[:, :, i : i + opt.mask_size, i : i + opt.mask_size] = gen_mask
-    # Save sample
-    sample = torch.cat((masked_samples.data, filled_samples.data, samples.data), -2)
-    save_image(sample, "/zhome/0f/f/137116/Desktop/TorturedRats/reports/figures/retinalVessel/generative/%d.png" % batches_done, nrow=6, normalize=True)
+  def save_sample(batches_done):
+      samples, masked_samples, i = next(iter(test_dataloader))
+      samples = Variable(samples.type(Tensor))
+      masked_samples = Variable(masked_samples.type(Tensor))
+      i = i[0].item()  # Upper-left coordinate of mask
+      # Generate inpainted image
+      gen_mask = generator(masked_samples)
+      filled_samples = masked_samples.clone()
+      filled_samples[:, :, i : i + mask_size, i : i + mask_size] = gen_mask
+      # Save sample
+      sample = torch.cat((masked_samples.data, filled_samples.data, samples.data), -2)
+      save_image(sample, "/zhome/0f/f/137116/Desktop/TorturedRats/reports/figures/retinalVessel/generative/%d.png" % batches_done, nrow=6, normalize=True)
 
+  # ----------
+  #  Training
+  # ----------
+  print("\n", 8*"-", "Training Starts", 8*"-", "\n")
+  print(f' Number of epochs:       {n_epochs}',"\n",
+        f'Batch size:             {batch_size}',"\n",
+        f'Learning rate:          {lr}',"\n",
+        f'Number of cpu threads:  {n_cpu}',"\n",
+        f'Image size:             {img_size}',"\n",
+        f'Mask size:              {mask_size}',"\n",
+        f'Number of channels:     {channels}',"\n",
+        f'Sample interval:        {sample_interval}',"\n")
+  
+  for epoch in range(n_epochs):
+      for i, (imgs, masked_imgs, masked_parts) in enumerate(dataloader):
 
-# ----------
-#  Training
-# ----------
+          # Adversarial ground truths
+          valid = Variable(Tensor(imgs.shape[0], *patch).fill_(1.0), requires_grad=False)
+          fake = Variable(Tensor(imgs.shape[0], *patch).fill_(0.0), requires_grad=False)
 
-for epoch in range(opt.n_epochs):
-    for i, (imgs, masked_imgs, masked_parts) in enumerate(dataloader):
+          # Configure input
+          imgs = Variable(imgs.type(Tensor))
+          masked_imgs = Variable(masked_imgs.type(Tensor))
+          masked_parts = Variable(masked_parts.type(Tensor))
 
-        # Adversarial ground truths
-        valid = Variable(Tensor(imgs.shape[0], *patch).fill_(1.0), requires_grad=False)
-        fake = Variable(Tensor(imgs.shape[0], *patch).fill_(0.0), requires_grad=False)
+          # -----------------
+          #  Train Generator
+          # -----------------
 
-        # Configure input
-        imgs = Variable(imgs.type(Tensor))
-        masked_imgs = Variable(masked_imgs.type(Tensor))
-        masked_parts = Variable(masked_parts.type(Tensor))
+          optimizer_G.zero_grad()
 
-        # -----------------
-        #  Train Generator
-        # -----------------
+          # Generate a batch of images
+          gen_parts = generator(masked_imgs)
 
-        optimizer_G.zero_grad()
+          # Adversarial and reconstruction loss
+          g_adv = adversarial_loss(discriminator(gen_parts), valid)
+          g_recon = reconstruction_loss(gen_parts, masked_parts)
+          # Total loss
+          g_loss = 0.001 * g_adv + 0.999 * g_recon
 
-        # Generate a batch of images
-        gen_parts = generator(masked_imgs)
+          g_loss.backward()
+          optimizer_G.step()
 
-        # Adversarial and pixelwise loss
-        g_adv = adversarial_loss(discriminator(gen_parts), valid)
-        g_pixel = pixelwise_loss(gen_parts, masked_parts)
-        # Total loss
-        g_loss = 0.001 * g_adv + 0.999 * g_pixel
+          # ---------------------
+          #  Train Discriminator
+          # ---------------------
 
-        g_loss.backward()
-        optimizer_G.step()
+          optimizer_D.zero_grad()
 
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
+          # Measure discriminator's ability to classify real from generated samples
+          real_loss = adversarial_loss(discriminator(masked_parts), valid)
+          fake_loss = adversarial_loss(discriminator(gen_parts.detach()), fake)
+          d_loss = 0.5 * (real_loss + fake_loss)
 
-        optimizer_D.zero_grad()
+          d_loss.backward()
+          optimizer_D.step()
 
-        # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(masked_parts), valid)
-        fake_loss = adversarial_loss(discriminator(gen_parts.detach()), fake)
-        d_loss = 0.5 * (real_loss + fake_loss)
+          print(
+              "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G adv: %f, pixel: %f]"
+              % (epoch, n_epochs, i, len(dataloader), d_loss.item(), g_adv.item(), g_recon.item())
+          )
 
-        d_loss.backward()
-        optimizer_D.step()
-
-        print(
-            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G adv: %f, pixel: %f]"
-            % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), g_adv.item(), g_pixel.item())
-        )
-
-        # Generate sample at sample interval
-        batches_done = epoch * len(dataloader) + i
-        if batches_done % opt.sample_interval == 0:
-            save_sample(batches_done)
+          # Generate sample at sample interval
+          batches_done = epoch * len(dataloader) + i
+          if batches_done % sample_interval == 0:
+              save_sample(batches_done)
+              
+if __name__ == "__main__":
+  main()
