@@ -25,7 +25,7 @@ class RetinalVesselDataset(Dataset):
     img = cv2.imread(img_path)#, cv2.IMREAD_GRAYSCALE)
     img = np.array(img)/255
     
-    center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40)
+    center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40, num_pairs=10)
     
     # Convert to torch tensors
     #center = torch.from_numpy(np.expand_dims(center, 0))
@@ -41,9 +41,12 @@ def RetinalVessel_collate_fn(batch):
   """
 
   # Unzip the batch
-  center_patches = [sample[0] for sample in batch]
-  offset_patches = [sample[1] for sample in batch]
-  labels = [sample[2] for sample in batch]
+  #center_patches = [sample[0] for sample in batch]
+  center_patches = [patch for sample in batch for patch in sample[0]]
+  #offset_patches = [sample[1] for sample in batch]
+  offset_patches = [patch for sample in batch for patch in sample[1]]
+  #labels = [sample[2] for sample in batch]
+  labels = [patch for sample in batch for patch in sample[2]]
 
   # Stack the patches and labels
   center_patches = torch.stack(center_patches, dim=0)

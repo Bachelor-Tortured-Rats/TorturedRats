@@ -11,60 +11,79 @@ def generate_patch_pair_MONAI(img, outer_patch_width, inner_patch_width, num_pai
   
   # Crop foreground with temporary crop function
   crop_fn = lambda x: x > 0.5
-  transform1 = CropForeground(crop_fn)
-  img = transform1(img)
+  foreground_crop = CropForeground(crop_fn)
 
-  # Randomly select one of 8 patch locations
-  patch_location = random.randint(0, 7)
+  # Crop foreground
+  img = foreground_crop(img)
 
-  # Multipliers for the height and width of the first zoom-in crop
+  # Randomly select one of 8 patch locations n times
+  patch_locations = np.random.randint(0, 7, num_pairs)
+  #patch_location = random.randint(0, 7)
+  
+  # Multipliers for the height and width of the first zoom-in crop of each patch location
   primary_crop_multiplier_dict = {0: [2, 2], 1: [2, 1], 2: [2, 2], 3: [1, 2], 4: [1, 2], 5: [2, 2], 6: [2, 1], 7: [2, 2]}
-  primary_crop_multiplier = primary_crop_multiplier_dict[patch_location]
-  primary_crop_shape = [outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]]
+  primary_crop_multipliers = [primary_crop_multiplier_dict[patch_location] for patch_location in patch_locations]
+  #primary_crop_multiplier = primary_crop_multiplier_dict[patch_location]
+  primary_crop_shapes = [[outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]] for primary_crop_multiplier in primary_crop_multipliers]
+  #primary_crop_shape = [outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]]
   
-  # Crop large patch larger than outer patch
-  primary_crop = RandSpatialCrop(primary_crop_shape, random_size=False)
-  primary_crop.set_random_state(42)
-  img = primary_crop(img)
+  # Initialize the center and offset patches for stacking image patches
+  center_patches = []
+  offset_patches = []
 
-  center_patch = img
-  offset_patch = img
+  for i, primary_crop_shape in enumerate(primary_crop_shapes):
+    # Define the primary and secondary crop functions
+    primary_crop = RandSpatialCrop(primary_crop_shape, random_size=False)
+    secondary_crop = RandSpatialCrop([inner_patch_width, inner_patch_width], random_size=False)
 
-  if patch_location <= 4:
-    offset_patch = offset_patch[:, :outer_patch_width, :]
-  else:
-    offset_patch = offset_patch[:, -outer_patch_width:, :]
-  
-  if patch_location in [0, 1, 3, 5, 6]:
-    offset_patch = offset_patch[:, :, :outer_patch_width]
-  else:
-    offset_patch = offset_patch[:, :, -outer_patch_width:]
+    # Crop large patch larger than outer patch
+    #primary_crop.set_random_state(42)
+    img = primary_crop(img)
 
-  if patch_location >= 3:
-    center_patch = center_patch[:, :outer_patch_width, :]
-  else:
-    center_patch = center_patch[:, -outer_patch_width:, :]
-  
-  if patch_location not in [0, 3, 5]:
-    center_patch = center_patch[:, :, :outer_patch_width]
-  else:
-    center_patch = center_patch[:, :, -outer_patch_width:]
+    center_patch = img
+    offset_patch = img
 
-  # Secondary crop to get inner patches
-  secondary_crop = RandSpatialCrop([inner_patch_width, inner_patch_width], random_size=False)
+    # Get the patch location
+    patch_location = patch_locations[i]
 
-  #secondary_crop.set_random_state(42)
-  center_patch = secondary_crop(center_patch)
-  offset_patch = secondary_crop(offset_patch)
+    # Cut out the center and offset patches
+    if patch_location <= 4:
+      offset_patch = offset_patch[:, :outer_patch_width, :]
+    else:
+      offset_patch = offset_patch[:, -outer_patch_width:, :]
+    
+    if patch_location in [0, 1, 3, 5, 6]:
+      offset_patch = offset_patch[:, :, :outer_patch_width]
+    else:
+      offset_patch = offset_patch[:, :, -outer_patch_width:]
+
+    if patch_location >= 3:
+      center_patch = center_patch[:, :outer_patch_width, :]
+    else:
+      center_patch = center_patch[:, -outer_patch_width:, :]
+    
+    if patch_location not in [0, 3, 5]:
+      center_patch = center_patch[:, :, :outer_patch_width]
+    else:
+      center_patch = center_patch[:, :, -outer_patch_width:]
+
+    # Secondary crop to get inner patches
+    #secondary_crop.set_random_state(42)
+    center_patch = secondary_crop(center_patch)
+    offset_patch = secondary_crop(offset_patch)
+
+    # Stack the patches
+    center_patches.append(center_patch)
+    offset_patches.append(offset_patch)
 
   """
   # Create label
   label = np.zeros(8)
   label[patch_location] = 1
   """
-  print(center_patch.shape)
-  print(type(patch_location))
-  return center_patch, offset_patch, patch_location
+  #print(center_patch.shape)
+  #print(type(patch_location))
+  return center_patches, offset_patches, patch_locations
 
 
 if __name__ == "__main__":
@@ -87,9 +106,11 @@ if __name__ == "__main__":
 
   #img = np.expand_dims(img, axis=0)
 
-  patch_center, patch_offset, label = generate_patch_pair_MONAI(img, outer_patch_width=80, inner_patch_width=60)
+  patch_centers, patch_offsets, labels = generate_patch_pair_MONAI(img, outer_patch_width=80, inner_patch_width=60, num_pairs=10)
   
-  print(label)
+  print(labels)
+  print(torch.stack(patch_centers).shape)
+  print(torch.stack(patch_offsets).shape)
 
   exit()
   
