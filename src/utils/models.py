@@ -310,7 +310,8 @@ class UNetEnc(nn.Module):
 #         "up_kernel_size": kernel_size
 #     }
 
-UNet1 = UNetEnc(spatial_dims=3,
+if __name__ == "__main__":
+    UNet1 = UNetEnc(spatial_dims=3,
                 in_channels=1,
                 out_channels=2,
                 channels=(16, 32, 64, 128, 256),
@@ -320,4 +321,4 @@ UNet1 = UNetEnc(spatial_dims=3,
                 kernel_size=3,
                 norm=Norm.BATCH,)
 
-print(UNet1)
+    print(UNet1)
