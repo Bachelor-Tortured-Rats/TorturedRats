@@ -5,14 +5,7 @@ from src.utils.models import UNetEnc
 from src.models.unet_model import create_unet
 
 
-def load_unet_enc(model_path: str, device,
-              spatial_dims=3,
-              in_channels=1,
-              out_channels=2,
-              channels=(16, 32, 64, 128, 256),
-              strides=(2, 2, 2, 2),
-              num_res_units=2,
-              ):
+def load_unet_enc(model_path: str, device):
     """Loads a trained unet model
 
     Args:
@@ -80,3 +73,41 @@ def create_unet_enc(device,
     model.to(device)
 
     return model, params
+
+
+def init_lr(model, encoder_lr, decoder_lr):
+    ## Setting learning rate of encoder and decoder separately from Juan Montesinos (JuanFMontesinos) @ pytorch.org
+    ## https://discuss.pytorch.org/t/how-to-set-a-different-learning-rate-for-a-single-layer-in-a-network/48552/10
+    encoder_params_list = [x for x, param in model.named_parameters() if param.requires_grad and "submodule.2" not in x and "model.2" not in x]
+    encoder_params = list(map(lambda x: x[1], list(filter(lambda kv: kv[0] in encoder_params_list, model.named_parameters()))))
+    decoder_params = list(map(lambda x: x[1], list(filter(lambda kv: kv[0] not in encoder_params_list, model.named_parameters()))))
+    params = [{'params': encoder_params, 'lr': encoder_lr}, {'params': decoder_params, 'lr': decoder_lr}]
+    optimizer = torch.optim.Adam(params, lr=decoder_lr)
+    return optimizer
+
+
+def set_lr(optimizer, encoder_lr, decoder_lr):
+    optimizer.param_groups[0]['lr'] = encoder_lr
+    optimizer.param_groups[1]['lr'] = decoder_lr
+    return optimizer
+
+
+if __name__ == "__main__":
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    UNet, _ = create_unet(device,
+                spatial_dims=3,
+                in_channels=1,
+                out_channels=2,
+                channels=(16, 32, 64, 128, 256),
+                strides=(2, 2, 2, 2),
+                num_res_units=2,
+                dropout=0,
+                kernel_size=3)
+    optimizer = init_lr(UNet, 0, 1e-4)
+    print(optimizer.state_dict())
+    optimizer = set_lr(optimizer, 1e-4, 0)
+    print(optimizer.state_dict())
+
+    for name, param in UNet.named_parameters():
+        if param.requires_grad:
+            print(name)

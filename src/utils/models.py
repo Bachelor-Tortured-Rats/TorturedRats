@@ -8,8 +8,11 @@ from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, deprecated_arg, export
-from monai.networks.nets import UNet
 
+__all__ = ["UNetEnc", "UnetEnc"]
+
+
+@alias("UnetEnc")
 class UNetEnc(nn.Module):
     """
     Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
@@ -167,14 +170,11 @@ class UNetEnc(nn.Module):
 
             if len(channels) > 2:
                 subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
-                # upc = c * 2
             else:
                 # the next layer is the bottom so stop recursion, create the bottom layer as the sublock for this layer
                 subblock = self._get_bottom_layer(c, channels[1])
-                # upc = c + channels[1]
 
             down = self._get_down_layer(inc, c, s, is_top)  # create layer in downsampling path
-            # up = self._get_up_layer(upc, outc, s, is_top)  # create layer in upsampling path
 
             return self._get_connection_block(down, subblock)
 
@@ -246,66 +246,24 @@ class UNetEnc(nn.Module):
         """
         return self._get_down_layer(in_channels, out_channels, 1, False)
 
-    # def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
-    #     """
-    #     Returns the decoding (up) part of a layer of the network. This typically will upsample data at some point
-    #     in its structure. Its output is used as input to the next layer up.
-
-    #     Args:
-    #         in_channels: number of input channels.
-    #         out_channels: number of output channels.
-    #         strides: convolution stride.
-    #         is_top: True if this is the top block.
-    #     """
-    #     conv: Union[Convolution, nn.Sequential]
-
-    #     conv = Convolution(
-    #         self.dimensions,
-    #         in_channels,
-    #         out_channels,
-    #         strides=strides,
-    #         kernel_size=self.up_kernel_size,
-    #         act=self.act,
-    #         norm=self.norm,
-    #         dropout=self.dropout,
-    #         bias=self.bias,
-    #         conv_only=is_top and self.num_res_units == 0,
-    #         is_transposed=True,
-    #         adn_ordering=self.adn_ordering,
-    #     )
-
-    #     if self.num_res_units > 0:
-    #         ru = ResidualUnit(
-    #             self.dimensions,
-    #             out_channels,
-    #             out_channels,
-    #             strides=1,
-    #             kernel_size=self.kernel_size,
-    #             subunits=1,
-    #             act=self.act,
-    #             norm=self.norm,
-    #             dropout=self.dropout,
-    #             bias=self.bias,
-    #             last_conv_only=is_top,
-    #             adn_ordering=self.adn_ordering,
-    #         )
-    #         conv = nn.Sequential(conv, ru)
-
-    #     return conv
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
         return x
 
 
-# params = {
-#         "spatial_dims": spatial_dims,
-#         "in_channels": in_channels,
-#         "out_channels": out_channels,
-#         "channels": channels,
-#         "strides": strides,
-#         "num_res_units": num_res_units,
-#         "dropout": dropout,
-#         "kernel_size": kernel_size,
-#         "up_kernel_size": kernel_size
-#     }
+
+UnetEnc = UNetEnc
+
+
+if __name__ == "__main__":
+    UNet = UNetEnc(spatial_dims=3,
+                in_channels=1,
+                out_channels=2,
+                channels=(16, 32, 64, 128, 256),
+                strides=(2, 2, 2, 2),
+                num_res_units=2,
+                dropout=0,
+                kernel_size=3
+                )
+
+    print(UNet)

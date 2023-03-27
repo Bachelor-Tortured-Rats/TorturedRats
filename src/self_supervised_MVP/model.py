@@ -99,7 +99,7 @@ class Beefier_Pred_head(nn.Module):
     def __init__(self):
         super(Beefier_Pred_head, self).__init__()
         self.layers = nn.Sequential(
-            nn.Linear(1024, 512),
+            nn.Linear(6400, 512),
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
@@ -126,8 +126,11 @@ class SelfSupervisedModel(nn.Module):
         
     def forward(self, center_patch, offset_patch):
         center_patch = self.CNNModel(center_patch)
-        offset_patch = self.CNNModel(offset_patch)
+        center_patch = torch.flatten(center_patch,start_dim=1)
 
+        offset_patch = self.CNNModel(offset_patch)
+        offset_patch = torch.flatten(offset_patch,start_dim=1)
+        
         return self.preHeadModel(center_patch, offset_patch)
 
 
