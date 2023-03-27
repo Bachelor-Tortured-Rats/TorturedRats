@@ -24,16 +24,10 @@ class RetinalVesselDataset(Dataset):
     img_path = self.paths[idx]
     img = cv2.imread(img_path)#, cv2.IMREAD_GRAYSCALE)
     img = np.array(img)/255
-    
-    center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40, num_pairs=10)
-    
-    # Convert to torch tensors
-    #center = torch.from_numpy(np.expand_dims(center, 0))
-    #offset_patch = torch.from_numpy(np.expand_dims(offset_patch, 0))
-    label = torch.tensor(label)
 
-    # Create a label
-    return center_patch, offset_patch, label
+    center_patch, offset_patch, label = generate_patch_pair_MONAI(img, outer_patch_width=50, inner_patch_width=40, num_pairs=10)
+    label = torch.tensor(label)
+    return center_patch.as_tensor().float(), offset_patch.as_tensor().float(), label
 
 def RetinalVessel_collate_fn(batch):
   """
