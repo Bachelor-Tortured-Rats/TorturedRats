@@ -8,7 +8,7 @@ from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, deprecated_arg, export
-
+from monai.networks.nets import UNet
 
 class UNetEnc(nn.Module):
     """
@@ -310,7 +310,7 @@ class UNetEnc(nn.Module):
 #         "up_kernel_size": kernel_size
 #     }
 
-UNet1 = UNetEnc(spatial_dims=3,
+model = UNetEnc(spatial_dims=3,
                 in_channels=1,
                 out_channels=2,
                 channels=(16, 32, 64, 128, 256),
@@ -320,4 +320,56 @@ UNet1 = UNetEnc(spatial_dims=3,
                 kernel_size=3,
                 norm=Norm.BATCH,)
 
-print(UNet1)
+# print(UNet1)
+
+UNet2 = UNet(spatial_dims=3,
+                in_channels=1,
+                out_channels=2,
+                channels=(16, 32, 64, 128, 256),
+                strides=(2, 2, 2, 2),
+                num_res_units=2,
+                dropout=0,
+                kernel_size=3,
+                norm=Norm.BATCH,)
+
+# print(UNet2)
+
+torch.save({'model_state_dict': model.state_dict(),
+            'spatial_dims': model.dimensions,
+            'in_channels': model.in_channels,
+            'out_channels': model.out_channels,
+            'channels': model.channels,
+            'strides': model.strides,
+            'num_res_units': model.num_res_units,
+            'dropout': model.dropout,
+            'kernel_size': model.kernel_size}, "models/UNetEncTest.pth")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+checkpoint = torch.load("models/UNetEncTest.pth", map_location=device)
+
+## Fixed version of partial loading from Adam Paszke (apaszke) @ pytorch.org 
+## https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/3
+pretrained_dict = checkpoint['model_state_dict']
+model_dict = UNet2.state_dict()
+pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+model_dict.update(pretrained_dict) 
+UNet2.load_state_dict(model_dict)
+with open('testingdata/pretrained_dict.txt', 'w') as f:
+    f.write(str(pretrained_dict))
+
+with open('testingdata/model_dict.txt', 'w') as f:
+    f.write(str(model_dict))
+# print(pretrained_dict)
+# print(model_dict)
+print(UNet2)
+
+# params = {
+#     "spatial_dims": checkpoint['spatial_dims'],
+#     "in_channels": checkpoint['in_channels'],
+#     "out_channels": checkpoint['out_channels'],
+#     "channels": checkpoint['channels'],
+#     "strides": checkpoint['strides'],
+#     "num_res_units": checkpoint['num_res_units'],
+#     "dropout": checkpoint.get('dropout', 0),
+#     "kernel_size": checkpoint.get('kernel_size', 3)
+# }
