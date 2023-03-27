@@ -9,7 +9,7 @@
 ### -- Select the resources: 1 gpu in exclusive process mode --
 #BSUB -gpu "num=1:mode=exclusive_process"
 ### -- set walltime limit: hh:mm --  maximum 24 hours for GPU-queues right now
-#BSUB -W 12:00
+#BSUB -W 24:00
 # request 32GB of system-memory
 #BSUB -R "rusage[mem=64GB]"
 #BSUB -R "select[gpu32gb]"
@@ -34,4 +34,4 @@ module load ffmpeg/4.2.2
 
 
 source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
-python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/hyperparameter_optimizer_agent.py -id "xxlqtey9"
+python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/hyperparameter_optimizer_agent.py -id "o42h1kpf"

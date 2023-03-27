@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import pdb
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -117,6 +118,17 @@ class Beefier_Pred_head(nn.Module):
         x = torch.cat((patches_A, patches_B), dim=1)
         return self.layers(x)
 
+class SelfSupervisedModel(nn.Module):
+    def __init__(self, CNNModel, preHeadModel):
+        super(SelfSupervisedModel, self).__init__()
+        self.CNNModel = CNNModel
+        self.preHeadModel = preHeadModel
+        
+    def forward(self, center_patch, offset_patch):
+        center_patch = self.CNNModel(center_patch)
+        offset_patch = self.CNNModel(offset_patch)
+
+        return self.preHeadModel(center_patch, offset_patch)
 
 
 if __name__ == "__main__":

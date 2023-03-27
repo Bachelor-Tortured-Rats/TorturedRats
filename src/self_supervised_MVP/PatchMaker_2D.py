@@ -3,7 +3,7 @@ import random
 from monai.transforms import CropForeground, RandSpatialCrop
 import torch
 
-def generate_patch_pair_MONAI(img, outer_patch_width, inner_patch_width):
+def generate_patch_pair_MONAI(img, outer_patch_width, inner_patch_width, num_pairs=1):
 
   # Add channel dimension
   #img = np.expand_dims(img, axis=0)
@@ -11,190 +11,79 @@ def generate_patch_pair_MONAI(img, outer_patch_width, inner_patch_width):
   
   # Crop foreground with temporary crop function
   crop_fn = lambda x: x > 0.5
-  transform1 = CropForeground(crop_fn)
-  img = transform1(img)
+  foreground_crop = CropForeground(crop_fn)
 
-  # Randomly select one of 8 patch locations
-  patch_location = random.randint(0, 7)
+  # Crop foreground
+  img = foreground_crop(img)
 
-  # Multipliers for the height and width of the first zoom-in crop
+  # Randomly select one of 8 patch locations n times
+  patch_locations = np.random.randint(0, 7, num_pairs)
+  #patch_location = random.randint(0, 7)
+  
+  # Multipliers for the height and width of the first zoom-in crop of each patch location
   primary_crop_multiplier_dict = {0: [2, 2], 1: [2, 1], 2: [2, 2], 3: [1, 2], 4: [1, 2], 5: [2, 2], 6: [2, 1], 7: [2, 2]}
-  primary_crop_multiplier = primary_crop_multiplier_dict[patch_location]
-  primary_crop_shape = [outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]]
+  primary_crop_multipliers = [primary_crop_multiplier_dict[patch_location] for patch_location in patch_locations]
+  #primary_crop_multiplier = primary_crop_multiplier_dict[patch_location]
+  primary_crop_shapes = [[outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]] for primary_crop_multiplier in primary_crop_multipliers]
+  #primary_crop_shape = [outer_patch_width * primary_crop_multiplier[0], outer_patch_width * primary_crop_multiplier[1]]
   
-  # Crop large patch larger than outer patch
-  primary_crop = RandSpatialCrop(primary_crop_shape, random_size=False)
-  primary_crop.set_random_state(42)
-  img = primary_crop(img)
+  # Initialize the center and offset patches for stacking image patches
+  center_patches = []
+  offset_patches = []
 
-  center_patch = img
-  offset_patch = img
+  for i, primary_crop_shape in enumerate(primary_crop_shapes):
+    # Define the primary and secondary crop functions
+    primary_crop = RandSpatialCrop(primary_crop_shape, random_size=False)
+    secondary_crop = RandSpatialCrop([inner_patch_width, inner_patch_width], random_size=False)
 
-  if patch_location <= 4:
-    offset_patch = offset_patch[:, :outer_patch_width, :]
-  else:
-    offset_patch = offset_patch[:, -outer_patch_width:, :]
-  
-  if patch_location in [0, 1, 3, 5, 6]:
-    offset_patch = offset_patch[:, :, :outer_patch_width]
-  else:
-    offset_patch = offset_patch[:, :, -outer_patch_width:]
+    # Crop large patch larger than outer patch
+    #primary_crop.set_random_state(42)
+    img = primary_crop(img)
 
-  if patch_location >= 3:
-    center_patch = center_patch[:, :outer_patch_width, :]
-  else:
-    center_patch = center_patch[:, -outer_patch_width:, :]
-  
-  if patch_location not in [0, 3, 5]:
-    center_patch = center_patch[:, :, :outer_patch_width]
-  else:
-    center_patch = center_patch[:, :, -outer_patch_width:]
+    center_patch = img
+    offset_patch = img
 
-  # Secondary crop to get inner patches
-  secondary_crop = RandSpatialCrop([inner_patch_width, inner_patch_width], random_size=False)
+    # Get the patch location
+    patch_location = patch_locations[i]
 
-  #secondary_crop.set_random_state(42)
-  center_patch = secondary_crop(center_patch)
-  offset_patch = secondary_crop(offset_patch)
+    # Cut out the center and offset patches
+    if patch_location <= 4:
+      offset_patch = offset_patch[:, :outer_patch_width, :]
+    else:
+      offset_patch = offset_patch[:, -outer_patch_width:, :]
+    
+    if patch_location in [0, 1, 3, 5, 6]:
+      offset_patch = offset_patch[:, :, :outer_patch_width]
+    else:
+      offset_patch = offset_patch[:, :, -outer_patch_width:]
+
+    if patch_location >= 3:
+      center_patch = center_patch[:, :outer_patch_width, :]
+    else:
+      center_patch = center_patch[:, -outer_patch_width:, :]
+    
+    if patch_location not in [0, 3, 5]:
+      center_patch = center_patch[:, :, :outer_patch_width]
+    else:
+      center_patch = center_patch[:, :, -outer_patch_width:]
+
+    # Secondary crop to get inner patches
+    #secondary_crop.set_random_state(42)
+    center_patch = secondary_crop(center_patch)
+    offset_patch = secondary_crop(offset_patch)
+
+    # Stack the patches
+    center_patches.append(center_patch)
+    offset_patches.append(offset_patch)
 
   """
   # Create label
   label = np.zeros(8)
   label[patch_location] = 1
   """
-
-  return center_patch, offset_patch, patch_location
-
-
-''' THIS IS THE FUNCTION WE WILL PROBABLY USE'''
-def extract_patches_and_label_from_center(image, center, patch_size_inner=(30,30), patch_size_outer=(40,40)):
-  """ Extracts a center patch, a random patch surounding the center patch, 
-      as well as the one hot encoded label from an image. 
-
-  Args:
-      image (numpy ndarray): a 2D image
-      center (tuple): coordinates of the pixel in the center of the center patch
-      patch_size_inner (tuple, optional): size of the actual patches. Defaults to (30,30).
-      patch_size_outer (tuple, optional): size of the outer patch from which a random subpatch is sampled. Defaults to (40,40).
-
-  Returns:
-      list[numpy ndarray, numpy ndarray], list[int]: first list contains the patches, second list is the one hot encoded label
-  """
-  
-  y, x = center[0], center[1]
-  patch_locations = {}
-  patches = {}   
-  count = 0 
-  half_patch_size = patch_size_outer[0] // 2
-  for i in [-1, 0, 1]:
-    for j in [-1, 0, 1]:
-      
-      # Extract patch
-      patch = image[y + i*(patch_size_outer[0]) - half_patch_size : y + i*(patch_size_outer[0]) + half_patch_size,
-                    x + j*(patch_size_outer[1]) - half_patch_size : x + j*(patch_size_outer[1]) + half_patch_size]
-      patches[count] = patch
-      patch_locations[count] = [(y + i*(patch_size_outer[0]) - half_patch_size, x + j*(patch_size_outer[1]) - half_patch_size), 
-                                (y + i*(patch_size_outer[0]) + half_patch_size, x + j*(patch_size_outer[1]) + half_patch_size)]
-      print(patch_locations)
-      count += 1
-  
-  # Extract center patch and remove it from 
-  center_patch = patches[4]
-  
-  # Extract random patch from remaining ones
-  # idx = np.random.randint(0,7)
-  idx = random.choice([0, 1, 2, 3, 5, 6, 7])
-  offset_patch = patches[idx]
-
-  # Extract label on chosen patch
-  label = np.zeros(9) # 9 for now, should be 8
-  label[idx] = 1
-  offset_patch = patches[idx]
-
-  # Sample random smaller patch within larger patch
-  start_row = random.randint(0, patch.shape[0] - patch_size_inner[0])
-  start_col = random.randint(0, patch.shape[1] - patch_size_inner[1])
-
-  center_patch = center_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
-  offset_patch = offset_patch[start_row:start_row+patch_size_inner[0], start_col:start_col+patch_size_inner[1]]
-
-  return [center_patch, offset_patch], label, patch_locations, patches
-  
-  
-''' THE FOLLOWING ARE UTILITY FUNCTIONS WE MIGHT USE LATER BUT NOT ATM'''
-def extract_2D_patches(image, patch_size=(4,4)):
-  """
-  Extracts all 2D patches of the given patch size from a 2D image.
-  
-  Args:
-    image: 2d image 
-    patch_size: tuple with 2 elements
-  
-  Returns:
-    dictionary: keys are patch coordinates and values are patch parts of image
-  """
-
-  patches = {}
-  x_patches, y_patches = image.shape[0] // patch_size[0], image.shape[1] // patch_size[1]
-  
-  for y in range(y_patches):
-    for x in range(x_patches):
-      patch = image[x*patch_size[0]:(x+1)*patch_size[0], y*patch_size[1]:(y+1)*patch_size[1]]
-      patches[(x, y)] = patch
-
-  return patches 
-
-def extract_patch_labels_from_centerpatch(patches, centerPatchCoodinates):
-  """Creates and returns a dictionary of labels for patches around a center patch 
-
-  Args:
-      patches (dictionary): a dictionary of patches, keys are coordinates and values are corresponding part of image
-      centerPatchCoodinates (tuple): tuple with coordinate of the center patch, in patch coordinates
-
-  Returns:
-      dictionary: keys are labels and values are patches
-  """
-  
-  patch_labels = {}
-  x, y = centerPatchCoodinates[0], centerPatchCoodinates[1]
-  
-  
-  patch_labels['center'] = patches[(x,y)]
-  
-  count = 1
-  for i in [-1, 0, 1]:
-    for j in [-1, 0, 1]:
-      if i == 0 and j == 0:
-        continue
-      
-      px = x + i
-      py = y + j
-      
-      patch_labels[count] = patches[(px, py)]
-      
-      count += 1
-      
-  return patch_labels
-
-def sample_random_smaller_patch(patch, smaller_patch_size = (3,3)):
-
-  sample_height, sample_width = smaller_patch_size[0], smaller_patch_size[1]    # size of the smaller array to sample
-
-  start_row = random.randint(0, patch.shape[0] - sample_height)
-  start_col = random.randint(0, patch.shape[1] - sample_width)
-
-  return patch[start_row:start_row+sample_height, start_col:start_col+sample_width]
-
-def make_sample(patches_with_labels, smaller_patch_size = (3,3)):
-
-  center_patch = patches_with_labels['center']
-  idx = np.random.randint(0,7)
-  label = np.zeros(8)
-  label[idx] = 1
-  random_patch = patches_with_labels[idx+1]
-
-  return sample_random_smaller_patch(center_patch, smaller_patch_size=smaller_patch_size), sample_random_smaller_patch(random_patch, smaller_patch_size=smaller_patch_size), label
-
+  #print(center_patch.shape)
+  #print(type(patch_location))
+  return center_patches, offset_patches, patch_locations
 
 
 if __name__ == "__main__":
@@ -214,33 +103,16 @@ if __name__ == "__main__":
   img = cv2.imread(img_path)
   img = np.array(img)/255
 
-  from monai.transforms import (
-    AsDiscrete,
-    AsDiscreted,
-    EnsureChannelFirstd,
-    Compose,
-    CropForeground,
-    LoadImaged,
-    Orientationd,
-    RandCropByPosNegLabeld,
-    SaveImaged,
-    ScaleIntensityRanged,
-    Spacingd,
-    Invertd,
-    LabelFilterd,
-    Rand3DElasticd,
-    RandRotate90d,
-    RandShiftIntensityd,
-    RandZoomd,
-    RandSpatialCrop
-  )
 
   #img = np.expand_dims(img, axis=0)
 
-  patch_center, patch_offset, label = generate_patch_pair_MONAI(img, outer_patch_width=80, inner_patch_width=60)
+  patch_centers, patch_offsets, labels = generate_patch_pair_MONAI(img, outer_patch_width=80, inner_patch_width=60, num_pairs=10)
   
-  print(label)
+  print(labels)
+  print(torch.stack(patch_centers).shape)
+  print(torch.stack(patch_offsets).shape)
 
+  exit()
   
 
   #print(img == torch.squeeze(patch_center).numpy())

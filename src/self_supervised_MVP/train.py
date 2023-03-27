@@ -1,107 +1,109 @@
+from monai.data import DataLoader
 import torch
-from torch import nn, optim
+import logging
+import torch
+from torch import nn
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from monai.networks.layers import Norm
 
-from model import Encoder, Pred_head, Beefier_Pred_head, BeefierEncoder
+from model import Beefier_Pred_head, BeefierEncoder, SelfSupervisedModel
+from src.utils.models import UNetEnc
 
 import torch
-import torch.nn.functional as F
+import pdb
 
 from src.self_supervised_MVP.retinalVesselDataset import RetinalVesselDataset, RetinalVessel_collate_fn
 
-def train_loop(encoder, prediction_head, train_loader, optimizer, device):
-    # Set the model to training mode
-    encoder.train()
-    prediction_head.train()
-    
-    # Number of correct predictions
-    correct = 0
+def train_model(model, device, train_loader, val_loader, max_epochs, lr):
+    logger = logging.getLogger(__name__)
 
-    # Number of predictions
-    total = 0
+    loss_function = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr)
 
-    # loss stats
-    total_loss = 0
-    steps = 0
+    epoch_loss_values = []
+    val_interval = 2
+    metric_values = []
+    best_metric = -1
+    best_metric_epoch = -1
 
-    # Loop over the training data
-    for data, labels in train_loader:
-        steps += 1
-        
-        data_patch_center, data_patch_offset = data
-        # Move the data and labels to the device
-        data_patch_center = data_patch_center.to(device)
-        data_patch_offset = data_patch_offset.to(device)
-        labels = labels.to(device)
+    for epoch in range(max_epochs):
+        logger.info("-" * 10)
+        logger.info(f"epoch {epoch + 1}/{max_epochs}")
+        model.train()
+        epoch_loss = 0
+        step = 0
 
-        # Ensure that all data is of type float32
-        data_patch_center = data_patch_center.float()
-        data_patch_offset = data_patch_offset.float()
-        labels = labels.float()
-        
-        # Zero the gradients
-        optimizer.zero_grad()
-        
-        # Forward pass through the encoder
-        latent_patch_center = encoder(data_patch_center)
-        latent_patch_offset = encoder(data_patch_offset)
-        
-        # Forward pass through the prediction head
-        prediction = prediction_head(latent_patch_center, latent_patch_offset)
+        # training part
+        for ((center_patch, offset_patch), labels) in train_loader:
+            step += 1
+            
+            center_patch, offset_patch, labels = center_patch.to(device), offset_patch.to(device), labels.to(device)
 
-        # Compute the loss based on the relative location of the patches
-        loss = F.cross_entropy(prediction.squeeze(), labels.long())
-        total_loss += loss.item()
+            optimizer.zero_grad()
+            outputs = model(center_patch, offset_patch)
+            loss = loss_function(outputs, labels)
+            
+            loss.backward()
+            
+            optimizer.step()
+            epoch_loss += loss.item()
 
+        # calculates average loss in epoch
+        epoch_loss /= step
+        epoch_loss_values.append(epoch_loss)
+        logging.info(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
 
-        # Compute the number of correct predictions
-        _, predicted = torch.max(prediction.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+        # validates every val_interval epochs
+        if (epoch + 1) % val_interval == 0:
+            model.eval()
+            with torch.no_grad():
 
-        # Backward pass and optimization step
-        loss.backward()
-        optimizer.step()
-        
-        # Save the encoder state dict
-        encoder_state_dict = encoder.state_dict()
-        torch.save(encoder_state_dict, 'encoder_state_dict.pth')
-        
-    # Return the average loss over the training data
-    return correct / total, total_loss / steps
+                val_loss = 0
+                for ((center_patch, offset_patch), labels) in val_loader:
+                    center_patch, offset_patch, labels = center_patch.to(device), offset_patch.to(device), labels.to(device)
 
+                    # forward pass on validation data
+                    outputs = model(center_patch, offset_patch)
+
+                    # calculates validation loss
+                    loss = loss_function(outputs, labels)
+                    val_loss += loss.item()
+
+                # saves validation loss
+                metric_values.append(val_loss)
+                
+                # updates if the current metric is better than the best metric
+                if val_loss > best_metric:
+                    best_metric = val_loss
+                    best_metric_epoch = epoch + 1
+                    
+                logger.info(
+                    f"current epoch: {epoch + 1} current mean dice: {val_loss:.4f}"
+                    f"\nbest mean dice: {best_metric:.4f} "
+                    f"at epoch: {best_metric_epoch}"
+                )
+
+    return None
 
 if __name__ == "__main__":
-    import numpy as np
-    #encoder = Encoder()
-    #prediction_head = Pred_head()
-    encoder = BeefierEncoder()
-    prediction_head = Beefier_Pred_head()
-
-    dataset = RetinalVesselDataset()
-
-    train_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
-
-    
     # Set the device to use for training
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print(device)
+    encoder = BeefierEncoder()
+    uNetEnc = UNetEnc(spatial_dims=3,
+                in_channels=1,
+                out_channels=2,
+                channels=(16, 32, 64, 128, 256),
+                strides=(2, 2, 2, 2),
+                num_res_units=2,
+                dropout=0,
+                kernel_size=3,
+                norm=Norm.BATCH,)
+    prediction_head = Beefier_Pred_head()
+    selfSupervisedModel = SelfSupervisedModel(encoder, prediction_head)
+    selfSupervisedModel.to(device)
 
-    # Set the models and optimizer to use the device
-    encoder.to(device)
-    prediction_head.to(device)
-    optimizer = optim.Adam(list(encoder.parameters()) + list(prediction_head.parameters()), lr=0.00001)
+    dataset = RetinalVesselDataset()
+    train_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=RetinalVessel_collate_fn)
 
-    # Train the models using the custom loss function and the train loop
-    longrun_avg = list(np.zeros(100))
-    for epoch in range(10000):
-        train_loss, loss = train_loop(encoder, prediction_head, train_loader, optimizer, device)
-        longrun_avg.append(train_loss)
-        longrun_avg.pop(0)
-        print(f"Epoch {epoch+1}, Accuracy: {train_loss:.4f}, Avg Accuracy: {np.mean(longrun_avg):.4f}")
-        print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
-        
-
-    
+    train_model(selfSupervisedModel, device, train_loader,train_loader, max_epochs=10, lr=0.0001)
