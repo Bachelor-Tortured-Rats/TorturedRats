@@ -11,7 +11,7 @@ from monai.utils import set_determinism
 import wandb
 from src.data.hepatic_dataset import load_hepatic_dataset
 from src.data.IRCAD_dataset import load_IRCAD_dataset
-from src.models.ss_unet_model import load_unet_enc
+from src.models.unet_enc_model import load_unet_enc
 from src.models.unet_model import create_unet, load_unet
 from src.pipelines.train_model import train_model
 from src.utils.click_utils import PythonLiteralOption

@@ -25,7 +25,7 @@ class RelativePathLocationModelHead(nn.Module):
     def __init__(self):
         super(RelativePathLocationModelHead, self).__init__()
         self.layers = nn.Sequential(
-            nn.Linear(2048, 512),
+            nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),

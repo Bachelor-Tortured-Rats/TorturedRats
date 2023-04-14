@@ -1,21 +1,4 @@
 from monai.utils import first, set_determinism
-from monai.transforms import (
-    AsDiscrete,
-    EnsureChannelFirstd,
-    Compose,
-    CropForegroundd,
-    LoadImaged,
-    Orientationd,
-    RandCropByPosNegLabeld,
-    ScaleIntensityRanged,
-    Spacingd,
-)
-from monai.networks.nets import UNet
-from monai.networks.layers import Norm
-from monai.metrics import DiceMetric
-from monai.losses import DiceLoss
-from monai.inferers import sliding_window_inference
-from monai.data import CacheDataset, DataLoader, decollate_batch
 import torch
 import matplotlib.pyplot as plt
 import click
@@ -23,12 +6,11 @@ import wandb
 import logging
 from torch import nn
 import numpy as np
-import pdb
 from pathlib import Path
 
 from src.models.unet_model import create_unet, load_unet
-from src.models.ss_unet_model import load_unet_enc, create_unet_enc
-from src.models.models_3drpl import RelativePathLocationModelHead, RelativePathLocationModel
+from src.models.unet_enc_model import load_unet_enc, create_unet_enc
+from src.models.rpl_model import RelativePathLocationModelHead, RelativePathLocationModel
 from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 
@@ -43,8 +25,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
 
     max_epochs = max_epochs
     val_interval = 2
-    best_metric = 999999
-    best_metric_epoch = 999999
+    lowest_loss = 999999
+    lowest_loss_epoch = 999999
     epoch_loss_values = []
     metric_values = []
     val_loss_list = []
@@ -110,9 +92,9 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                 val_loss_list.append(val_loss)
 
                 # updates if the current metric is better than the best metric
-                if val_loss < best_metric:
-                    best_metric = val_loss
-                    best_metric_epoch = epoch + 1
+                if val_loss < lowest_loss:
+                    lowest_loss = val_loss
+                    lowest_loss_epoch = epoch + 1
 
                     # makes sure the folder exist
                     Path(model_save_path).mkdir(parents=True, exist_ok=True)
@@ -128,8 +110,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         'num_res_units': model.UnetEncoder.num_res_units,
                         'dropout': model.UnetEncoder.dropout,
                         'kernel_size': model.UnetEncoder.kernel_size,
-                        'epoch': best_metric_epoch,
-                        'best_metric': best_metric,
+                        'epoch': lowest_loss_epoch,
+                        'best_metric': lowest_loss,
                     }, "{folder_path}/3drpl_{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_bmm.pth".format(
                         folder_path=model_save_path,
                         data_type=data_type,
@@ -144,15 +126,15 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "metric": val_loss, "best_metric": best_metric, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
+                          "metric": val_loss, "best_metric": lowest_loss, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
                 logger.info(
-                    f"current epoch: {epoch + 1} current metric: {val_loss:.4f}"
-                    f"\nbest mean dice: {best_metric:.4f} "
-                    f"at epoch: {best_metric_epoch}"
+                    f"current epoch: {epoch + 1} Validation Loss: {val_loss:.4f}"
+                    f"\nbest best_metric: {lowest_loss:.4f} "
+                    f"at epoch: {lowest_loss_epoch}"
                 )
 
 
-    return model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values
+    return model, lowest_loss, lowest_loss_epoch, epoch_loss_values, val_interval, metric_values
 
 
 def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values, figures_save_path):
@@ -196,6 +178,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
     logger = logging.getLogger(__name__)
     logger.info('Initialized logging')
     logger.info(f'Using dataset {data_type}')
+    logger.info(f'setup 3drpl')
 
     # initializing wandb
     config = {
@@ -219,7 +202,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         train_loader, val_loader = load_IRCAD_dataset(data_path, setup='3drpl')
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, setup='3drpl')
+        train_loader, val_loader = load_hepatic_dataset(data_path, setup='3drpl', train_label_proportion=0.1)
 
     unet_enc_model, params = create_unet_enc(
         device=device, 

@@ -51,7 +51,6 @@ transforms_3drpl = Compose(
     RandCropByPosNegLabeld(
         keys=["image", "label"],
         label_key="label",
-        # spatial_size=(96, 96, 96),
         spatial_size=(48, 48, 24),
         pos=1,
         neg=1,
@@ -213,7 +212,7 @@ val_transforms_aug = Compose(
 test_transforms = Compose([LoadImaged(keys=["image", "label"]),EnsureChannelFirstd(keys=["image", "label"]),])
 
 
-def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,setup='default'):
+def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,batch_size=5,setup='default'):
     train_images = sorted(glob.glob(os.path.join(data_dir, "imagesTr", "*.nii.gz")))
     train_labels = sorted(glob.glob(os.path.join(data_dir, "labelsTr", "*.nii.gz")))
 
@@ -233,7 +232,7 @@ def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)    
 
-    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
 
     return train_loader, val_loader

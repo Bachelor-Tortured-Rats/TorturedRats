@@ -9,7 +9,7 @@ from monai.networks.layers import Norm
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.models.ss_unet_model import create_unet_enc
+from src.models.unet_enc_model import create_unet_enc
 from src.self_supervised_MVP.model import (Beefier_Pred_head, BeefierEncoder,
                                            SelfSupervisedModel)
 from src.self_supervised_MVP.retinalVesselDataset import (

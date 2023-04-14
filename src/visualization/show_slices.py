@@ -21,7 +21,7 @@ for model_path in model_paths:
 
     # Get path to specific model
     path = general_path + model_path
-    
+
     # Load model
     model = load_unet(path, device)
     model.eval() 
@@ -47,7 +47,7 @@ for model_path in model_paths:
 
             plt.imshow(torch.argmax(val_outputs, dim=1).detach().cpu()[0, :, :, 80])
             plt.show()
-            plt.savefig()
+            plt.savefig(f'/reports/figures/finetune_wrt_labelproportion{model_path}')
             
             # breaks after 2 iterations
             if i == 2:
