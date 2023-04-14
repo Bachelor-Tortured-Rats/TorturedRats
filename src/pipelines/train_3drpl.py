@@ -202,7 +202,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         train_loader, val_loader = load_IRCAD_dataset(data_path, setup='3drpl')
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, setup='3drpl', train_label_proportion=0.1)
+        train_loader, val_loader = load_hepatic_dataset(data_path, setup='3drpl')
 
     unet_enc_model, params = create_unet_enc(
         device=device, 

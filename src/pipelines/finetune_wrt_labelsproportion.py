@@ -43,12 +43,10 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
     # load data
     if data_type == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        train_loader, val_loader = load_IRCAD_dataset(data_path,
-                                                      aug=augmentation, train_label_proportion=train_label_proportion)
+        train_loader, val_loader = load_IRCAD_dataset(data_path, setup=setup, train_label_proportion=train_label_proportion)
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(
-            data_path, aug=augmentation, train_label_proportion=train_label_proportion)
+        train_loader, val_loader = load_hepatic_dataset(data_path, setup=setup, train_label_proportion=train_label_proportion)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -78,7 +76,7 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 @click.option('--terminate_at_step_count', '-t', type=click.INT, default=None, help="Terminate training after this many steps, defaults to None")
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
 @click.option('--model_load_path', type=click.Path(file_okay=True), help='Path to saved model')
-@click.option('--model_save_path', type=click.Path(exists=True), default='models', help='Path to folder for saving model')
+@click.option('--model_save_path', type=click.Path(), default='models', help='Path to folder for saving model')
 @click.option('--figures_save_path', type=click.Path(), default='reports/figures/finetune_wrt_labelproportion', help='Path to folder for saving figures')
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
 @click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')

@@ -212,7 +212,7 @@ val_transforms_aug = Compose(
 test_transforms = Compose([LoadImaged(keys=["image", "label"]),EnsureChannelFirstd(keys=["image", "label"]),])
 
 
-def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,batch_size=5,setup='default'):
+def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,batch_size=1,setup='default'):
     train_images = sorted(glob.glob(os.path.join(data_dir, "imagesTr", "*.nii.gz")))
     train_labels = sorted(glob.glob(os.path.join(data_dir, "labelsTr", "*.nii.gz")))
 
@@ -222,7 +222,7 @@ def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,
     if train_label_proportion != -1:
         train_files = train_files[:int(len(train_files)*train_label_proportion)]
 
-    if setup == 'aug':
+    if setup == 'transfer' or setup  == 'random':
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
     elif setup == '3drpl':
