@@ -18,6 +18,8 @@ from monai.transforms import (
     RandZoomd
 )
 from monai.data import CacheDataset, DataLoader
+from src.utils.data_transformations import selectPatchesd
+
 
 import os
 import glob
@@ -27,6 +29,28 @@ import numpy as np
 
 def select_kidney(x):
     return x == 1
+
+# Train transforms to use for self supervised learning
+# on the hepatic dataset
+transforms_3drpl = Compose(
+    [
+    LoadImaged(keys=["image", "label"]),
+    EnsureChannelFirstd(keys=["image", "label"]),
+    LabelFilterd(keys=["label"], applied_labels=[1]),
+    ScaleIntensityRanged(
+            keys=["image"],
+            a_min=-57,
+            a_max=164,
+            b_min=0.0,
+            b_max=1.0,
+            clip=True,
+        ),
+    CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+    Orientationd(keys=["image", "label"], axcodes="RAS"),
+    Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
+    selectPatchesd(keys=["image"]),
+    ]
+)
 
 
 train_transforms = Compose(
@@ -178,7 +202,7 @@ val_transforms_aug = Compose(
 test_transforms = Compose([LoadImaged(keys=["image", "label"]),EnsureChannelFirstd(keys=["image", "label"]),])
 
 
-def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,aug=False):
+def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,setup='default'):
     train_images = sorted(glob.glob(os.path.join(data_dir, "imagesTr", "*.nii.gz")))
     train_labels = sorted(glob.glob(os.path.join(data_dir, "labelsTr", "*.nii.gz")))
 
@@ -188,12 +212,16 @@ def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,
     if train_label_proportion != -1:
         train_files = train_files[:int(len(train_files)*train_label_proportion)]
 
-    if aug:
-        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4) ## do not validate on augmented data
-    else:
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)
+    if setup == 'aug':
+        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
+    elif setup == '3drpl':
+        train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)   
+    else: # default
+        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)    
+
     train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
 

@@ -1,7 +1,7 @@
 from monai.networks.nets import UNet
 import torch
 from monai.networks.layers import Norm
-from src.utils.models import UNetEnc
+from src.models.UNetEnc import UNetEnc
 from src.models.unet_model import create_unet
 
 
@@ -9,7 +9,7 @@ def load_unet_enc(model_path: str, device):
     """Loads a trained unet model
 
     Args:
-        model_path (str): path to model
+        model_path (str): path to encoder u-net model
 
     Returns:
         model: a loaded pytorch unet model

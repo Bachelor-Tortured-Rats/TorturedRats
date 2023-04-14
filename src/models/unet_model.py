@@ -3,14 +3,7 @@ import torch
 from monai.networks.layers import Norm
 
 
-def load_unet(model_path: str, device,
-              spatial_dims=3,
-              in_channels=1,
-              out_channels=2,
-              channels=(16, 32, 64, 128, 256),
-              strides=(2, 2, 2, 2),
-              num_res_units=2,
-              ):
+def load_unet(model_path: str, device):
     """Loads a trained unet model
 
     Args:

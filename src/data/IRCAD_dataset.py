@@ -14,7 +14,7 @@ from monai.transforms import (
 )
 from monai.data import CacheDataset, DataLoader
 
-from src.utils.data_transformations import Addd
+from src.utils.data_transformations import Addd, selectPatchesd
 
 train_transforms = Compose(
     [
@@ -110,7 +110,6 @@ train_transforms_aug = Compose(
         ),
     ]
 )
-# Defines transformations
 val_transforms = Compose(
     [
         LoadImaged(keys=["image", "label",'mask','label2']),
@@ -183,8 +182,27 @@ val_transforms_aug = Compose(
         )
     ]
 )
+transforms_3drpl = Compose(
+    [
+        LoadImaged(keys=["image",'mask', "label"]),
+        EnsureChannelFirstd(keys=["image",'mask', "label"]),
+        CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        ScaleIntensityRanged(
+            keys=["image"],
+            a_min=-57,
+            a_max=164,
+            b_min=0.0,
+            b_max=1.0,
+            clip=True,
+        ),
+        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),   
+        selectPatchesd(keys=["image"]),
+    ]
+)
 
-def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1,aug=False):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
+def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1,setup=False):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
     """Loads the IRCAD dataset from folder
 
     Args:
@@ -220,15 +238,18 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1
     val_mask = [f'{ircad_path}/3Dircadb1.{i}/MASKS_DICOM/liver/' for i in val_patients]
     val_files = [{"image": image_name, "label": label_name, "mask": mask_name, "label2": label2_name} for image_name, label_name, mask_name, label2_name in zip(val_images, val_venoussystem, val_mask, val_artery)]
     
-    if aug:
-        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)    ## do not validate on augmented data
+    if setup == 'aug':
+        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
+    elif setup == '3drpl':
+        train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)   
     else:    
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=4)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=4)    
+        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=0)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)    
         
-    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=0)
 
     return train_loader, val_loader
 
