@@ -48,6 +48,17 @@ transforms_3drpl = Compose(
     CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
     Orientationd(keys=["image", "label"], axcodes="RAS"),
     Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
+    RandCropByPosNegLabeld(
+        keys=["image", "label"],
+        label_key="label",
+        # spatial_size=(96, 96, 96),
+        spatial_size=(48, 48, 24),
+        pos=1,
+        neg=1,
+        num_samples=4,
+        image_key="image",
+        image_threshold=0,
+    ),
     selectPatchesd(keys=["image"]),
     ]
 )

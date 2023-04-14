@@ -72,7 +72,7 @@ class selectPatchesd(RandomizableTransform, MapTransform):
         self.rand[0] = rands
         self.rand[1] = (self.loc[rands])[0]*16
         self.rand[2] = (self.loc[rands])[1]*16
-        self.rand[3] = (self.loc[rands])[2]*16
+        self.rand[3] = (self.loc[rands])[2]*8
 
 
     def __call__(self, data, randomize: bool = True):
@@ -90,9 +90,9 @@ class selectPatchesd(RandomizableTransform, MapTransform):
             # gets center patch
             #print(d[key].shape)
             
-            center = d[key][0,16:32, 16:32, 16:32]
+            center = d[key][0,16:32, 16:32, 8:16]
             # gets other patch
-            other = d[key][0, self.rand[1]:self.rand[1]+16, self.rand[2]:self.rand[2]+16, self.rand[3]:self.rand[3]+16]
+            other = d[key][0, self.rand[1]:self.rand[1]+16, self.rand[2]:self.rand[2]+16, self.rand[3]:self.rand[3]+8]
 
             # updates keys in dictionary with the new pathches and the new position
             d[key] = (center, other)
