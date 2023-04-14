@@ -87,7 +87,7 @@ train_transforms = Compose(
             spatial_size=(48, 48, 48),
             pos=1,
             neg=1,
-            num_samples=4,
+            num_samples=1,
             image_key="image",
             image_threshold=0,
         ),
