@@ -27,11 +27,14 @@ import pdb
 from src.models.unet_model import create_unet, load_unet
 from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
+from src.models.unet_enc_model import init_lr, set_lr
 
-
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None, start_lr=None, gradlr=False):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr)
+    if start_lr is not None:
+        optimizer = init_lr(model, start_lr, lr)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
 
     # logging setup
@@ -77,6 +80,9 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
             if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
                 logging.info("Terminating training at step count: {}".format(total_step_count))
                 break
+            if total_step_count % int(terminate_at_step_count/10) == 0 and gradlr and terminate_at_step_count:
+                set_lr(optimizer, start_lr+(lr-start_lr)*(total_step_count/terminate_at_step_count), lr)
+                logger.info(f"learning rate increased to {optimizer.param_groups[0]['lr']:.5f}")
 
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
@@ -128,7 +134,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         'kernel_size': model.kernel_size,
                         'epoch': best_metric_epoch,
                         'best_metric': best_metric,
-                    }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_bmm.pth".format(
+                    }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_slr{start_lr}_gradlr{gradlr}_bmm.pth".format(
                         folder_path=model_save_path,
                         data_type=data_type,
                         pt=pt,
@@ -136,8 +142,10 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         lr=lr,
                         aug=aug,
                         kernel_size=model.kernel_size,
-                        dropout=model.dropout
-                    )
+                        dropout=model.dropout,
+                        start_lr=start_lr,
+                        gradlr=gradlr
+                        )
                     )
                     logger.info("saved new best metric model")
 
@@ -153,7 +161,13 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         # stops training if the total step count is greater than the terminate_at_step_count.
         if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
             break
-
+        
+        # gradually increase learning rate
+        if (epoch+1) % int(max_epochs/10) == 0 and gradlr and not terminate_at_step_count:
+            set_lr(optimizer, start_lr+(lr-start_lr)*(epoch/max_epochs), lr)
+            logger.info(f"learning rate increased to {optimizer.param_groups[0]['lr']:.4f}")
+            
+        
     return model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values
 
 

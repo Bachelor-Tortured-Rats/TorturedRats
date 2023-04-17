@@ -17,7 +17,7 @@ from src.pipelines.train_model import train_model
 from src.utils.click_utils import PythonLiteralOption
 
 
-def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, train_label_proportion, terminate_at_step_count, setup=''):
+def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, train_label_proportion, terminate_at_step_count, start_lr, gradlr, setup=''):
     logger = logging.getLogger(__name__)
 
     # initialize wandb
@@ -63,7 +63,7 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
     logger.info(
         f'Training model with label proportion {train_label_proportion}, for {epochs} epochs, with learning rate {lr}')
     model, best_metric, _, _, _, _ = train_model(
-        model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='finetuned', model_save_path=model_save_path, aug=augmentation, terminate_at_step_count=terminate_at_step_count)
+        model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='finetuned', model_save_path=model_save_path, aug=augmentation, terminate_at_step_count=terminate_at_step_count, start_lr=start_lr, gradlr=gradlr)
 
     wandb.finish()
 
@@ -82,7 +82,9 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 @click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
 @click.option('--label_proportions', '-lp', cls=PythonLiteralOption, default=[], help="Which label proportions to use for finetuning")
 @click.option('--setup', '-s', type=click.Choice(['transfer', '3drpl', 'random'], case_sensitive=False), default='transfer', help='Which dataset setup to use')
-def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup):
+@click.option('--start_lr', '-slr', type=click.FLOAT, default=1e-4, help='Starting learning rate of encoder, defaults to 1e-4')
+@click.option('--gradlr', '-g', is_flag=True, help='Toggle gradually increasing encoder lr (only applicable when start_lr is set)')
+def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup, start_lr, gradlr):
     # initializes logging
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -100,7 +102,7 @@ def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_p
 
         set_determinism(seed=420)
         best_mean_dice = finetune_wrt_labelproportion(
-            data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup)
+            data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, start_lr=start_lr, gradlr=gradlr)
 
         best_mean_dice_list.append(best_mean_dice)
         logger.info(

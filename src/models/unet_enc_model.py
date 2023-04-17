@@ -345,6 +345,8 @@ def init_lr(model, encoder_lr, decoder_lr):
     params = [{'params': encoder_params, 'lr': encoder_lr},
               {'params': decoder_params, 'lr': decoder_lr}]
     optimizer = torch.optim.Adam(params, lr=decoder_lr)
+    print(optimizer.param_groups[0]['lr'])
+    print(optimizer.param_groups[1]['lr'])
     return optimizer
 
 
