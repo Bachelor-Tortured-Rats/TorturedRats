@@ -34,7 +34,7 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 
     run = wandb.init(
         project="TorturedRats",
-        # notes="",
+        name= f"{data_type}_tsp{terminate_at_step_count}__aug{augmentation}_lr{lr:.1E}_s{setup}_lp{train_label_proportion}",
         tags=["finetuning"],
         config=config,
         mode=wandb_logging,

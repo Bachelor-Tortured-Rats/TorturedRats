@@ -95,7 +95,8 @@ class selectPatchesd(RandomizableTransform, MapTransform):
             other = d[key][0, self.rand[1]:self.rand[1]+16, self.rand[2]:self.rand[2]+16, self.rand[3]:self.rand[3]+8]
 
             # updates keys in dictionary with the new pathches and the new position
-            d[key] = (center, other)
+            d[key+"_center"] = center
+            d[key+"_other"] = other
             d[self.label_key] = self.rand[0] # position
             
 

@@ -22,6 +22,7 @@ import click
 import wandb
 import logging
 from pathlib import Path
+import pdb
 
 from src.models.unet_model import create_unet, load_unet
 from src.data.IRCAD_dataset import load_IRCAD_dataset
@@ -53,22 +54,23 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         model.train()
         epoch_loss = 0
         step = 0
-        # logger.info("before train_loader")
+
         for batch_data in train_loader:
             step += 1
             total_step_count += 1
             
-            inputs, labels = (
-                batch_data["image"].to(device),
+            input_center, input_other, labels = (
+                batch_data["image_center"].to(device),
+                batch_data["image_other"].to(device),
                 batch_data["label"].to(device),
             )
-            # logger.info("before optimizer.zero_grad")
+
             optimizer.zero_grad()
-            outputs = model(inputs)
+            outputs = model((input_center, input_other))
             loss = loss_function(outputs, labels)
-            # logger.info("before loss.backward()")
+
             loss.backward()
-            # logger.info("before optimizer.step()")
+
             optimizer.step()
             epoch_loss += loss.item()
 
@@ -141,7 +143,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "mean_dice": metric, "best_mean_dice": best_metric, "train_loss": epoch_loss,'epoch':epoch})
+                          "mean_dice": metric, "best_mean_dice": best_metric, "train_loss": epoch_loss,'epoch':epoch, 'step_count': total_step_count})
                 
                 logger.info(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"

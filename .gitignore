@@ -96,9 +96,10 @@ target/
 *.err
 *.out
 
-# as default ignore all saved models files .pth
+# as default ignore all saved models files .pth 
 *.pth
 
-# as default ignore all image files
+# as default ignore all image files and .txt files
 *.png
 *.mp4
+*.txt
