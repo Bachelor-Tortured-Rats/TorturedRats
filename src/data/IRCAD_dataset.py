@@ -238,10 +238,10 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1
     val_mask = [f'{ircad_path}/3Dircadb1.{i}/MASKS_DICOM/liver/' for i in val_patients]
     val_files = [{"image": image_name, "label": label_name, "mask": mask_name, "label2": label2_name} for image_name, label_name, mask_name, label2_name in zip(val_images, val_venoussystem, val_mask, val_artery)]
     
-    if setup == 'aug':
+    if setup == 'aug' or setup == 'transfer':
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
-    elif setup == '3drpl':
+    elif setup == '3drpl_pretask':
         train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)   
     else:    

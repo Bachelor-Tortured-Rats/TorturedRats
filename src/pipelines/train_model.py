@@ -59,14 +59,13 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
             step += 1
             total_step_count += 1
             
-            input_center, input_other, labels = (
-                batch_data["image_center"].to(device),
-                batch_data["image_other"].to(device),
+            inputs, labels = (
+                batch_data["image"].to(device),
                 batch_data["label"].to(device),
             )
 
             optimizer.zero_grad()
-            outputs = model((input_center, input_other))
+            outputs = model(inputs)
             loss = loss_function(outputs, labels)
 
             loss.backward()

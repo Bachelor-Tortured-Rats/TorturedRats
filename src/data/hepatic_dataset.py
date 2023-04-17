@@ -225,7 +225,7 @@ def load_hepatic_dataset(data_dir,test_train_split=.8,train_label_proportion=-1,
     if setup == 'transfer' or setup  == 'random':
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
-    elif setup == '3drpl':
+    elif setup == '3drpl_pretask':
         train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
         val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)   
     else: # default
