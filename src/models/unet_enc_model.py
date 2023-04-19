@@ -345,8 +345,6 @@ def init_lr(model, encoder_lr, decoder_lr):
     params = [{'params': encoder_params, 'lr': encoder_lr},
               {'params': decoder_params, 'lr': decoder_lr}]
     optimizer = torch.optim.Adam(params, lr=decoder_lr)
-    print(optimizer.param_groups[0]['lr'])
-    print(optimizer.param_groups[1]['lr'])
     return optimizer
 
 
@@ -368,9 +366,7 @@ if __name__ == "__main__":
                           dropout=0,
                           kernel_size=3)
     optimizer = init_lr(UNet, 0, 1e-4)
-    print(optimizer.state_dict())
     optimizer = set_lr(optimizer, 1e-4, 0)
-    print(optimizer.state_dict())
 
     for name, param in UNet.named_parameters():
         if param.requires_grad:

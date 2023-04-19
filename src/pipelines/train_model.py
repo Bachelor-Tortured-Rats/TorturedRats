@@ -30,10 +30,12 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 from src.models.unet_enc_model import init_lr, set_lr
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_save_path, terminate_at_step_count=None, start_lr=None, gradlr=False):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_save_path, terminate_at_step_count=None, encoder_start_lr=None, gradlr=False):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
-    if start_lr is not None:
-        optimizer = init_lr(model, start_lr, lr)
+
+    # set custom learning rate if encoder_start_lr is set
+    if encoder_start_lr is not None:
+        optimizer = init_lr(model, encoder_lr=encoder_start_lr, decoder_lr=lr)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr)
     dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -57,6 +59,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_s
     post_label = Compose([AsDiscrete(to_onehot=2)])
 
     while epoch < max_epochs:
+        epoch += 1
+
         logger.info("-" * 10)
         if terminate_at_step_count is None:
             logger.info(f"epoch {epoch}/{max_epochs}") 
@@ -88,15 +92,19 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_s
             if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
                 logging.info("Terminating training at step count: {}".format(total_step_count))
                 break
-            if total_step_count % int(terminate_at_step_count/10) == 0 and gradlr and terminate_at_step_count:
-                set_lr(optimizer, start_lr+(lr-start_lr)*(total_step_count/terminate_at_step_count), lr)
+
+            # increases the learning rate at 10 intervals if terminate_at_step_count is set and gradlr is set
+            if terminate_at_step_count and gradlr and total_step_count % int(terminate_at_step_count/10) == 0:
+                set_lr(optimizer, encoder_start_lr+(lr-encoder_start_lr)*(total_step_count/terminate_at_step_count), lr)
                 logger.info(f"learning rate increased to {optimizer.param_groups[0]['lr']:.5f}")
 
+        # calculates the average loss for the epoch
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
 
         # forces the model to validate if the total step count is greater than the terminate_at_step_count.
-        if (epoch + 1) % val_interval == 0 or (terminate_at_step_count is not None and total_step_count > terminate_at_step_count):
+        # else, validates every val_interval epochs
+        if (epoch) % val_interval == 0 or (terminate_at_step_count is not None and total_step_count > terminate_at_step_count):
             model.eval()
             with torch.no_grad():
                 for val_data in val_loader:
@@ -124,7 +132,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_s
                 metric_values.append(metric)
                 if metric > best_metric:
                     best_metric = metric
-                    best_metric_epoch = epoch + 1
+                    best_metric_epoch = epoch
+                    best_metric_step = total_step_count
 
                     # makes sure the folder exist
                     Path(model_save_path).mkdir(parents=True, exist_ok=True)
@@ -142,41 +151,42 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_s
                         'kernel_size': model.kernel_size,
                         'epoch': best_metric_epoch,
                         'best_metric': best_metric,
-                    }, "{folder_path}/{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_slr{start_lr}_gradlr{gradlr}_bmm.pth".format(
-                        folder_path=model_save_path,
-                        data_type=data_type,
-                        pt=pt,
-                        max_epochs=max_epochs,
-                        lr=lr,
-                        aug=aug,
-                        kernel_size=model.kernel_size,
-                        dropout=model.dropout,
-                        start_lr=start_lr,
-                        gradlr=gradlr
-                        )
-                    )
+                        'encoder_start_lr': encoder_start_lr,
+                        'gradlr': gradlr,
+                    }, model_save_path + "/model.pth")
+                    
                     logger.info("saved new best metric model")
 
-                wandb.log(step=epoch, data={
-                          "mean_dice": metric, "best_mean_dice": best_metric, "train_loss": epoch_loss,'epoch':epoch, 'step_count': total_step_count})
+                wandb.log(data={
+                            "mean_dice": metric, 
+                            "best_mean_dice": best_metric, 
+                            "train_loss": epoch_loss,
+                            'epoch':epoch, 
+                            'total_step_count': total_step_count})
                 
                 logger.info(
-                    f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
+                    f"current epoch: {epoch }, current step {total_step_count}, current mean dice: {metric:.4f}"
                     f"\nbest mean dice: {best_metric:.4f} "
-                    f"at epoch: {best_metric_epoch}"
+                    f"at epoch: {best_metric_epoch}, or step: {best_metric_step}"
                 )
 
         # stops training if the total step count is greater than the terminate_at_step_count.
         if terminate_at_step_count is not None and total_step_count > terminate_at_step_count:
             break
         
-        # gradually increase learning rate
-        if (epoch+1) % int(max_epochs/10) == 0 and gradlr and not terminate_at_step_count:
-            set_lr(optimizer, start_lr+(lr-start_lr)*(epoch/max_epochs), lr)
+        # gradually increase learning rate if we train for a set number of epochs
+        if terminate_at_step_count is None and gradlr and (epoch) % int(max_epochs/10) == 0 :
+            set_lr(optimizer, encoder_start_lr+(lr-encoder_start_lr)*(epoch/max_epochs), lr)
             logger.info(f"learning rate increased to {optimizer.param_groups[0]['lr']:.4f}")
             
-        
-    return model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values
+    output_data = {
+        'best_metric': best_metric,
+        'best_metric_epoch': best_metric_epoch,
+        'best_metric_step': best_metric_step,
+        'metric_values': metric_values,
+        'val_interval': val_interval,
+    }
+    return model, output_data
 
 
 def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values, figures_save_path):
