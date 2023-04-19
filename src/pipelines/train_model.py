@@ -23,13 +23,14 @@ import wandb
 import logging
 from pathlib import Path
 import pdb
+import numpy as np
 
 from src.models.unet_model import create_unet, load_unet
 from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 from src.models.unet_enc_model import init_lr, set_lr
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None, start_lr=None, gradlr=False):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_save_path, terminate_at_step_count=None, start_lr=None, gradlr=False):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
     if start_lr is not None:
         optimizer = init_lr(model, start_lr, lr)
@@ -41,7 +42,12 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
     #wandb.watch(model, criterion=loss_function, log="all", log_freq=2)
     logger = logging.getLogger(__name__)
 
-    max_epochs = max_epochs
+    # assigns max epochs. Set to infinity if terminate_at_step_count is set
+    max_epochs = np.inf if terminate_at_step_count is not None  else max_epochs
+    epoch = 0
+    total_step_count = 0
+
+    # assign metric values
     val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
@@ -49,11 +55,13 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
     metric_values = []
     post_pred = Compose([AsDiscrete(argmax=True, to_onehot=2)])
     post_label = Compose([AsDiscrete(to_onehot=2)])
-    total_step_count = 0
 
-    for epoch in range(max_epochs):
+    while epoch < max_epochs:
         logger.info("-" * 10)
-        logger.info(f"epoch {epoch + 1}/{max_epochs}")
+        if terminate_at_step_count is None:
+            logger.info(f"epoch {epoch}/{max_epochs}") 
+        else: 
+            logger.info(f"epoch {epoch}, step {total_step_count}/{terminate_at_step_count}")
         model.train()
         epoch_loss = 0
         step = 0

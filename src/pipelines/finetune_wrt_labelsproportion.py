@@ -22,7 +22,6 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 
     # initialize wandb
     config = {
-        "epochs": epochs,
         "learning_rate": lr,
         "pretrained": True,
         "dataset": data_type,
@@ -34,25 +33,26 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 
     run = wandb.init(
         project="TorturedRats",
-        name= f"{data_type}_tsp{terminate_at_step_count}__aug{augmentation}_lr{lr:.1E}_s{setup}_lp{train_label_proportion}",
+        name= f"finetune_{data_type}_s{setup}_lp{train_label_proportion}_tsp{terminate_at_step_count}_id" + str(np.random.randint(10000000)), # makes the name unique
         tags=["finetuning"],
         config=config,
         mode=wandb_logging,
     )
 
     # load data
-    if data_type == 'IRCAD':
+    if config['dataset'] == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
         train_loader, val_loader = load_IRCAD_dataset(data_path, setup=setup, train_label_proportion=train_label_proportion)
-    elif data_type == 'hepatic':
+    elif config['dataset'] == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, setup=setup, train_label_proportion=train_label_proportion)
+        train_loader, val_loader = load_hepatic_dataset(data_path, setup=config['setup'], train_label_proportion=config['train_label_proportion'])
 
+    # loads model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    if setup == "3drpl":
+    if config['setup'] == "3drpl":
         model, params = load_unet_enc(model_load_path, device=device)
-    elif setup == "random":
+    elif config['setup'] == "random":
         model, params = create_unet(device=device)
     else:
         model, params = load_unet(model_load_path, device=device)
@@ -61,7 +61,7 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
     wandb.config.update(params)
 
     logger.info(
-        f'Training model with label proportion {train_label_proportion}, for {epochs} epochs, with learning rate {lr}')
+        f'Training model with label proportion {config["train_label_proportion"]}, for {config["train_label_proportion"]} max steps, with learning rate {config["learning_rate"]}')
     model, best_metric, _, _, _, _ = train_model(
         model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='finetuned', model_save_path=model_save_path, aug=augmentation, terminate_at_step_count=terminate_at_step_count, start_lr=start_lr, gradlr=gradlr)
 
@@ -69,15 +69,40 @@ def finetune_wrt_labelproportion(data_type, epochs, lr, model_load_path, model_s
 
     return best_metric
 
+def save_finetune_data(label_proportions, metrics, path):
+    # makes sure that the paths exists
+    figures_path = os.path.join("./reports/figures", path)
+    data_path = os.path.join("./reports/data", path)
+    Path(figures_path).mkdir(parents=True, exist_ok=True)
+    Path(data_path).mkdir(parents=True, exist_ok=True)
+
+    # creaetes the plots
+    fig, ax = plt.subplots()
+    ax.plot(label_proportions[:len(
+        metrics)], metrics)
+    ax.set_xlabel('Label proportion')
+    ax.set_ylabel('Best mean dice')
+    ax.set_title(f'Best mean dice vs label proportion')
+    fig.savefig(os.path.join(figures_path, f'best_mean_dice_vs_label_proportion.png'))
+
+    # saves the data to a text file
+    data = np.column_stack((label_proportions, metrics))
+    np.savetxt(os.path.join(data_path,
+                                f'best_mean_dice_vs_label_proportion.txt'), 
+                                data, 
+                                delimiter=',', 
+                                header="label_proportions, best_mean_dice_list")
+
 
 @click.command()
 @click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
-@click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
+@click.option('--label_proportions', '-lp', cls=PythonLiteralOption, default=[], help="Which label proportions to use for finetuning")
+@click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
+@click.option('--setup', '-s', type=click.Choice(['transfer', '3drpl', 'random'], case_sensitive=False), default='transfer', help='Which dataset setup to use')
+@click.option('--model_load_path', type=click.Path(file_okay=True), help='Path to saved model')
 @click.option('--terminate_at_step_count', '-t', type=click.INT, default=None, help="Terminate training after this many steps, defaults to None")
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
-@click.option('--model_load_path', type=click.Path(file_okay=True), help='Path to saved model')
-@click.option('--model_save_path', type=click.Path(), default='models', help='Path to folder for saving model')
-@click.option('--figures_save_path', type=click.Path(), default='reports/figures/finetune_wrt_labelproportion', help='Path to folder for saving figures')
+@click.option('--saving_path', type=click.Path(), help='The subfolder path to save all the results to')
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
 @click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
 @click.option('--label_proportions', '-lp', cls=PythonLiteralOption, default=[], help="Which label proportions to use for finetuning")
@@ -90,46 +115,28 @@ def main(data_type, epochs, lr, model_load_path, model_save_path, figures_save_p
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
     logger.info('Initialized logging')
+    logger.info('Running finetune_wrt_labelproportion.py')
     logger.info(f'Using dataset {data_type}')
     logger.info(f'Using setup {setup}')
 
-    # makes sure that the figures_save_path folder path exists
-    Path(figures_save_path).mkdir(parents=True, exist_ok=True)
-
-    best_mean_dice_list = []
+    # trains the model for each label proportion
+    best_metric_list = []
     for label_proportion in label_proportions:
-        label_proportion = float(label_proportion)
-
         set_determinism(seed=420)
-        best_mean_dice = finetune_wrt_labelproportion(
-            data_type, epochs, lr, model_load_path, model_save_path, wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, start_lr=start_lr, gradlr=gradlr)
 
-        best_mean_dice_list.append(best_mean_dice)
+        label_proportion = label_proportion
+        best_metric = finetune_wrt_labelproportion(
+            data_type, None, lr, model_load_path, saving_path, wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, start_lr=start_lr, gradlr=gradlr)
+
+        best_metric_list.append(best_metric)
         logger.info(
-            f'Best mean dice for label proportion {label_proportion}: {best_mean_dice}')
+            f'Best metric for label proportion {label_proportion}: {best_metric}')
+        
+        save_finetune_data(label_proportion, best_metric, saving_path)
 
-        # code to plot the best mean dice vs label proportion saves to figures_save_path
-        # updates after each label proportion
-        fig, ax = plt.subplots()
-        ax.plot(label_proportions[:len(
-            best_mean_dice_list)], best_mean_dice_list)
-        ax.set_xlabel('Label proportion')
-        ax.set_ylabel('Best mean dice')
-        ax.set_title(
-            f'Best mean dice vs label proportion, total training steps: {terminate_at_step_count}')
-        fig.savefig(os.path.join(figures_save_path,
-                                 f'{setup}_{terminate_at_step_count}_best_mean_dice_vs_label_proportion_{label_proportions}.png'))
-
-        # saves the data to a text file
-        data = np.array(
-            [label_proportions[:len(best_mean_dice_list)], best_mean_dice_list])
-        np.savetxt(os.path.join(figures_save_path,
-                                f'{setup}_{terminate_at_step_count}_best_mean_dice_vs_label_proportion_{label_proportions}.txt'), data, delimiter=',', header="label_proportions, best_mean_dice_list")
-
-    logger.info(f'FINAL DATA:  {label_proportions}: {best_mean_dice_list}')
+    # prints the final data
+    logger.info(f'FINAL DATA:  {label_proportions}: {best_metric_list}')
 
 
 if __name__ == "__main__":
-    print('Running finetune_wrt_labelproportion.py')
-
     main()
