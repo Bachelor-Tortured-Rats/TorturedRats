@@ -30,7 +30,7 @@ from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
 from src.models.unet_enc_model import init_lr, set_lr
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_save_path, terminate_at_step_count=None, encoder_start_lr=None, gradlr=False):
+def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_save_path, terminate_at_step_count=None, encoder_start_lr=None, gradlr=False,LSB_JOBID=00000000):
     loss_function = DiceLoss(to_onehot_y=True, softmax=True)
 
     # set custom learning rate if encoder_start_lr is set
@@ -153,7 +153,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, model_s
                         'best_metric': best_metric,
                         'encoder_start_lr': encoder_start_lr,
                         'gradlr': gradlr,
-                    }, model_save_path + "/model.pth")
+                    }, model_save_path + f"/model_{LSB_JOBID}.pth")
                     
                     logger.info("saved new best metric model")
 

@@ -34,4 +34,4 @@ module load ffmpeg/4.2.2
 
 
 source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
-python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/finetune_wrt_labelsproportion.py -d hepatic -s "transfer" -l "online" --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" -lp '[.01,0.03,0.06,0.10,1.00]' --terminate_at_step_count "24000"  
+python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/finetune_wrt_labelsproportion.py —-id $LSB_JOBID -d hepatic -s "transfer" -l "online" --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" -lp '[.01,0.03,0.06,0.10,1.00]' --terminate_at_step_count "24000"  

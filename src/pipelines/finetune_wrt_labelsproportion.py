@@ -17,7 +17,7 @@ from src.pipelines.train_model import train_model
 from src.utils.click_utils import PythonLiteralOption
 
 
-def finetune_wrt_labelproportion(data_type, lr, model_load_path, saving_path, wandb_logging, augmentation, train_label_proportion, terminate_at_step_count, encoder_start_lr, encoder_gradlr, setup=''):
+def finetune_wrt_labelproportion(data_type, lr, model_load_path, saving_path, wandb_logging, augmentation, train_label_proportion, terminate_at_step_count, encoder_start_lr, encoder_gradlr, LSB_JOBID, setup=''):
     logger = logging.getLogger(__name__)
 
     # initialize wandb
@@ -32,16 +32,22 @@ def finetune_wrt_labelproportion(data_type, lr, model_load_path, saving_path, wa
         "encoder_start_lr": encoder_start_lr,
         "encoder_gradlr": encoder_gradlr,
         "pretask_model_path": model_load_path,
+        "LSB_JOBID": LSB_JOBID,
     }
 
-    run = wandb.init(
-        project="TorturedRats",
-        name=f"finetune_{data_type}_s{setup}_lp{train_label_proportion}_tsp{terminate_at_step_count}_id" +
-        str(np.random.randint(10000000)),  # makes the name unique
-        tags=["finetuning"],
-        config=config,
-        mode=wandb_logging,
-    )
+    # creates params for wandb
+    init_params = {
+        'project' : "TorturedRats",
+        'tags' : ["finetuning"],
+        'config' : config,
+        'mode' : wandb_logging,
+    }
+    # if running on cluster, add job id to name
+    if LSB_JOBID != 00000000:
+        init_params['name'] = LSB_JOBID 
+
+
+    run = wandb.init(**init_params)
 
     # load data
     if config['dataset'] == 'IRCAD':
@@ -78,6 +84,7 @@ def finetune_wrt_labelproportion(data_type, lr, model_load_path, saving_path, wa
                               terminate_at_step_count=terminate_at_step_count,
                               encoder_start_lr=encoder_start_lr,
                               gradlr=encoder_gradlr,
+                              LSB_JOBID=LSB_JOBID
                               )
 
     wandb.finish()
@@ -85,7 +92,7 @@ def finetune_wrt_labelproportion(data_type, lr, model_load_path, saving_path, wa
     return data['best_metric']
 
 
-def save_finetune_data(label_proportions, metrics, path):
+def save_finetune_data(label_proportions, metrics, path,LSB_JOBID):
     # makes sure that the paths exists
     figures_path = os.path.join("./reports/figures", path)
     data_path = os.path.join("./reports/data", path)
@@ -99,12 +106,12 @@ def save_finetune_data(label_proportions, metrics, path):
     ax.set_ylabel('Best mean dice')
     ax.set_title(f'Best mean dice vs label proportion')
     fig.savefig(os.path.join(
-        figures_path, f'best_mean_dice_vs_label_proportion.png'))
+        figures_path, f'best_mean_dice_vs_label_proportion_{LSB_JOBID}.png'))
 
     # saves the data to a text file
     data = np.column_stack((label_proportions, metrics))
     np.savetxt(os.path.join(data_path,
-                            f'best_mean_dice_vs_label_proportion.txt'),
+                            f'best_mean_dice_vs_label_proportion_{LSB_JOBID}.txt'),
                data,
                delimiter=',',
                header="label_proportions, best_mean_dice_list")
@@ -124,9 +131,8 @@ def save_finetune_data(label_proportions, metrics, path):
 @click.option('--setup', '-s', type=click.Choice(['transfer', '3drpl', 'random'], case_sensitive=False), default='transfer', help='Which dataset setup to use')
 @click.option('--start_lr', '-slr', type=click.FLOAT, default=1e-4, help='Starting learning rate of encoder, defaults to 1e-4')
 @click.option('--gradlr', '-g', is_flag=True, help='Toggle gradually increasing encoder lr (only applicable when start_lr is set)')
-@click.option('--id', type=click.INT, help="A unique id for the run, used for logging")
-def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup, start_lr, gradlr, id):
-    print("**********", id)
+@click.option('--LSB_JOBID', type=click.INT, default=00000000, help="A unique id for the run, used for logging")
+def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup, start_lr, gradlr, LSB_JOBID):
     # initializes logging
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -151,13 +157,13 @@ def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_prop
 
         label_proportion = float(label_proportion)
         best_metric = finetune_wrt_labelproportion(
-            data_type, lr, model_load_path, "./models/" + saving_path + "/" + str(label_proportion).replace(".", "_"), wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, encoder_start_lr=start_lr, encoder_gradlr=gradlr)
+            data_type, lr, model_load_path, "./models/" + saving_path + "/" + str(label_proportion).replace(".", "_"), wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, encoder_start_lr=start_lr, encoder_gradlr=gradlr,LSB_JOBID=LSB_JOBID)
 
         best_metric_list.append(best_metric)
         logger.info(
             f'Best metric for label proportion {label_proportion}: {best_metric}')
 
-        save_finetune_data(label_proportions[:len(best_metric_list)], best_metric_list, saving_path)
+        save_finetune_data(label_proportions[:len(best_metric_list)], best_metric_list, saving_path,LSB_JOBID)
 
     # prints the final data
     logger.info(f'FINAL DATA:  {label_proportions}: {best_metric_list}')
