@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from monai.inferers import sliding_window_inference
 from PyPDF2 import PdfMerger
+from pathlib import Path
 import io
 import pdb
 import torch
@@ -79,6 +80,7 @@ def extract_slicewise_output_to_pdf(model_path = None, model_type = 'transfer', 
                 break
 
     # Merge and save the pdf
+    Path('./reports/figures/inference').mkdir(parents=True, exist_ok=True)
     save_path = f'reports/figures/inference/{model_type}_{num_images}_first.pdf'
     with open(save_path, 'wb') as output:
         pdf_merger.write(output)
@@ -90,16 +92,15 @@ if __name__ == "__main__":
     
     # loads dataset
     data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-    train_loader, val_loader = load_hepatic_dataset(data_path, train_label_proportion=.1)
+    train_loader, val_loader = load_hepatic_dataset(data_path, train_label_proportion=.01)
 
     # models
     models = ['3drpl', 
               'transfer', 
               'random']
 
-
     for model in models:
         
-        path = f'models/finetuned/hepatic_{model}_steps_1000.pth'
+        path = f"models/finetune_wrt_labelproportion/hepatic/{model}/0_01-0_03-0_06-0_1-1_0/24000/0_01/model.pth"
         
         extract_slicewise_output_to_pdf(model_path = path, model_type=model, num_images=5)

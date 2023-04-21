@@ -126,13 +126,13 @@ def save_finetune_data(label_proportions, metrics, path,LSB_JOBID):
 @click.option('--terminate_at_step_count', '-t', type=click.INT, default=None, help="Terminate training after this many steps, defaults to None")
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
+@click.option('--lsb_jobid','-j', type=click.INT, default="00000000", help="A unique id for the run, used for logging")
 @click.option('--augmentation', '-a', is_flag=True, help='Toggle using data augmentation')
 @click.option('--label_proportions', '-lp', cls=PythonLiteralOption, default=[], help="Which label proportions to use for finetuning")
 @click.option('--setup', '-s', type=click.Choice(['transfer', '3drpl', 'random'], case_sensitive=False), default='transfer', help='Which dataset setup to use')
 @click.option('--start_lr', '-slr', type=click.FLOAT, default=1e-4, help='Starting learning rate of encoder, defaults to 1e-4')
 @click.option('--gradlr', '-g', is_flag=True, help='Toggle gradually increasing encoder lr (only applicable when start_lr is set)')
-@click.option('--LSB_JOBID', type=click.INT, default=00000000, help="A unique id for the run, used for logging")
-def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup, start_lr, gradlr, LSB_JOBID):
+def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_proportions, terminate_at_step_count, setup, start_lr, gradlr, lsb_jobid):
     # initializes logging
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -141,6 +141,8 @@ def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_prop
     logger.info('Running finetune_wrt_labelproportion.py')
     logger.info(f'Using dataset {data_type}')
     logger.info(f'Using setup {setup}')
+
+    lsb_jobid = str(lsb_jobid)
 
     # setting the saving path
     # folder structure will be data_type/setup/label_proportion/terminate_at_step_count/*
@@ -157,13 +159,13 @@ def main(data_type, lr, model_load_path, wandb_logging, augmentation, label_prop
 
         label_proportion = float(label_proportion)
         best_metric = finetune_wrt_labelproportion(
-            data_type, lr, model_load_path, "./models/" + saving_path + "/" + str(label_proportion).replace(".", "_"), wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, encoder_start_lr=start_lr, encoder_gradlr=gradlr,LSB_JOBID=LSB_JOBID)
+            data_type, lr, model_load_path, "./models/" + saving_path + "/" + str(label_proportion).replace(".", "_"), wandb_logging, augmentation, label_proportion, terminate_at_step_count, setup=setup, encoder_start_lr=start_lr, encoder_gradlr=gradlr,LSB_JOBID=lsb_jobid)
 
         best_metric_list.append(best_metric)
         logger.info(
             f'Best metric for label proportion {label_proportion}: {best_metric}')
 
-        save_finetune_data(label_proportions[:len(best_metric_list)], best_metric_list, saving_path,LSB_JOBID)
+        save_finetune_data(label_proportions[:len(best_metric_list)], best_metric_list, saving_path,lsb_jobid)
 
     # prints the final data
     logger.info(f'FINAL DATA:  {label_proportions}: {best_metric_list}')
