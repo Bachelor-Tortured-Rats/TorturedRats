@@ -17,14 +17,14 @@ from src.models.unet_enc_model import init_lr, load_unet_enc, set_lr
 from src.models.unet_model import create_unet, load_unet
 
 
-def train_model(model, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device):
+def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device):
     '''
         Trains model for terminate_at_step steps, and evaluates model every eval_each_steps steps.
     '''
 
     logger = logging.getLogger(__name__)
 
-    step = 0
+    step = 0 # needs to start at 1 for while loop to work
     best_dice_metric = -1
     best_dice_metric_step = -1
     train_iteration_loss_values = []
@@ -38,21 +38,15 @@ def train_model(model, terminate_at_step, eval_each_steps, train_loader, val_loa
     optimizer = init_lr(model, encoder_lr=encoder_lr, decoder_lr=learning_rate)
 
     # we terminate training at terminate_at_step
-    while True:
+    while step != terminate_at_step:
         model.train()
         train_iteration_loss = 0
 
         # trains model for eval_each_steps steps
-        while step % eval_each_steps != 0:
+        while True:
             for batch_data in train_loader:
                 step += 1
-
-                # stops in middle of epoch for evaluation
-                if eval_each_steps % step != 0:
-                    break
-                # stops when reaching terminate_at_step
-                if step == terminate_at_step:
-                    return
+                
                 # increases encoder lr
                 if increase_encoder_lr and step % int(terminate_at_step/10) == 0:
                     set_lr(optimizer, encoder_lr+(learning_rate-encoder_lr)
@@ -70,6 +64,20 @@ def train_model(model, terminate_at_step, eval_each_steps, train_loader, val_loa
                 loss.backward()
                 optimizer.step()
                 train_iteration_loss += loss.item()
+
+                # stops in middle of epoch for evaluation
+                if step % eval_each_steps == 0:
+                    break
+
+                # stops when reaching terminate_at_step
+                if step == terminate_at_step:
+                    break
+            else: # magic code to break out of 2 loops https://stackoverflow.com/a/3150107
+                # Continue if the inner loop wasn't broken.
+                continue
+            # Inner loop was broken, break the outer.
+            break
+
 
         train_iteration_loss /= eval_each_steps
         train_iteration_loss_values.append(train_iteration_loss)
@@ -101,15 +109,28 @@ def train_model(model, terminate_at_step, eval_each_steps, train_loader, val_loa
             dice_metric_values.append(dice_metric_value)
             if dice_metric_value > best_dice_metric:
                 logger.info(
-                    "New best model found, with dice metric: {dice_metric_value:.4f} at step {step}")
+                    f"New best model found, with dice metric: {dice_metric_value:.4f} at step {step}")
                 best_dice_metric = dice_metric_value
                 best_dice_metric_step = step
+
+                # saves the model
+                torch.save({
+                    'model_state_dict': model.state_dict(),
+                    'spatial_dims': model.dimensions,
+                    'in_channels': model.in_channels,
+                    'out_channels': model.out_channels,
+                    'channels': model.channels,
+                    'strides': model.strides,
+                    'num_res_units': model.num_res_units,
+                    'dropout': model.dropout,
+                    'kernel_size': model.kernel_size,
+                },  f"models/finetune-kfold/model_{jobid}.pth")
 
             logger.info(
                 f"step: {step} of {terminate_at_step}, dice_metric: {dice_metric_value:.4f}")
             
             wandb.log(step=step,data={
-                "dice_metric_values": dice_metric_values,
+                "dice_metric_value": dice_metric_value,
                 "best_dice_metric" : best_dice_metric,
                 "best_dice_metric_step": best_dice_metric_step,
                 "train_iteration_loss": train_iteration_loss,
@@ -124,12 +145,12 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
     # initialize wandb
     config = {
         'jobid': jobid,
+        'k_fold': k_fold,
         'data_type': data_type,
         'label_proportion': label_proportion,
         'model_load_path': model_load_path,
         'setup': setup,
         'terminate_at_step': terminate_at_step,
-        'setup': setup,
         'encoder_lr': encoder_lr,
         'learning_rate': learning_rate,
         'increase_encoder_lr': increase_encoder_lr,
@@ -141,7 +162,7 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
         'entity': "team-christian",
         'config': config,
         'mode': wandb_logging,
-        'group': f"{experiement_name}_lp_{k_fold}",
+        'group': f"{experiement_name}_lp_{label_proportion}",
     }
 
     # if running on cluster, add job id to name
@@ -174,7 +195,7 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
     wandb.config.update(params)
 
     # train model
-    train_model(model, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device)
+    train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device)
 
     wandb.finish()
 
