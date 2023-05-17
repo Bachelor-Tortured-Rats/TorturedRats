@@ -40,4 +40,4 @@ source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
 ### python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 1 --experiement_name "first_exp_random" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "" --setup "random"  --terminate_at_step "24000" --eval_each_steps "200" --encoder_lr 1e-4 --learning_rate 1e-4 --wandb_logging "online" 
 
 ### transfer
-###python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 1 --experiement_name "first_exp_transfer" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" --setup "transfer"  --terminate_at_step "24000" --eval_each_steps "200"  --encoder_lr 0  --increase_encoder_lr --learning_rate 1e-4 --wandb_logging "online" 
+### python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion .01 --experiement_name "transfer_inc_enc_lr" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" --setup "transfer"  --terminate_at_step "24000" --eval_each_steps "200"  --encoder_lr 0  --increase_encoder_lr --learning_rate 1e-4 --wandb_logging "online" 

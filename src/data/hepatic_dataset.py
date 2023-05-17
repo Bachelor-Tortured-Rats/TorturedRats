@@ -10,7 +10,7 @@ from monai.transforms import (AsDiscrete, AsDiscreted, Compose,
                               Rand3DElasticd, RandCropByPosNegLabeld,
                               RandRotate90d, RandShiftIntensityd, RandZoomd,
                               SaveImaged, ScaleIntensityRanged, Spacingd)
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 
 from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd
 
@@ -225,13 +225,17 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
     data_dicts = [{"image": image_name, "label": label_name}
                   for image_name, label_name in zip(train_images, train_labels)]
 
+    if numkfold != 1:
+        kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
+        kf_splits = kf.split(data_dicts)
+        train_index, val_index = list(kf_splits)[k_fold]
 
-    kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
-    kf_splits = kf.split(data_dicts)
-    train_index, val_index = list(kf_splits)[k_fold]
-
-    train_files = [data_dicts[i] for i in train_index]
-    val_files = [data_dicts[i] for i in val_index]
+        train_files = [data_dicts[i] for i in train_index]
+        val_files = [data_dicts[i] for i in val_index]
+    else: # only train data if numkfold == 1
+        train_files, val_files = train_test_split(data_dicts,test_size=0.1, random_state=420, shuffle=True)
+        # train_files = data_dicts  # uses all data in training
+        # val_files = np.random.choice(data_dicts, int(len(data_dicts)*0.2), replace=False) # tests on a subset of the train data
 
     if train_label_proportion != -1:
         train_files = train_files[:int(
