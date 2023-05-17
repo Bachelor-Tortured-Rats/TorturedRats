@@ -7,7 +7,7 @@ import logging
 from torch import nn
 import numpy as np
 from pathlib import Path
-
+import pdb
 from src.models.unet_model import create_unet, load_unet
 from src.models.unet_enc_model import load_unet_enc, create_unet_enc
 from src.models.rpl_model import RelativePathLocationModelHead, RelativePathLocationModel
@@ -42,7 +42,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         for batch_data in train_loader:
             step += 1
             total_step_count += 1
-            
+            #pdb.set_trace()
             centerpatch, offsetpatch, labels = (
                 batch_data["image"][0].to(device),
                 batch_data["image"][1].to(device),
@@ -88,6 +88,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     classified_correct += outputs.argmax(dim=1).cpu()==labels.cpu()
 
                 # saves validation loss
+                accuracy = np.mean(classified_correct)
                 metric_values.append(np.mean(classified_correct))
                 val_loss_list.append(val_loss)
 
@@ -126,11 +127,12 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "metric": val_loss, "best_metric": lowest_loss, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
+                          "metric": val_loss, "best_metric": lowest_loss, "accuracy": accuracy, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
                 logger.info(
                     f"current epoch: {epoch + 1} Validation Loss: {val_loss:.4f}"
                     f"\nbest best_metric: {lowest_loss:.4f} "
-                    f"at epoch: {lowest_loss_epoch}"
+                    f"at epoch: {lowest_loss_epoch} "
+                    f"ACC: {accuracy}"
                 )
 
 

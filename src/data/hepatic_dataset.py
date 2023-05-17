@@ -18,7 +18,7 @@ from monai.transforms import (
     RandZoomd
 )
 from monai.data import CacheDataset, DataLoader
-from src.utils.data_transformations import selectPatchesd
+from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd
 
 
 import os
@@ -51,14 +51,16 @@ transforms_3drpl = Compose(
     RandCropByPosNegLabeld(
         keys=["image", "label"],
         label_key="label",
-        spatial_size=(48, 48, 24),
+        #spatial_size=(48, 48, 24), # changed for now to enable random crop
+        spatial_size = (54, 54, 30),
         pos=1,
         neg=1,
         num_samples=1,
         image_key="image",
         image_threshold=0,
     ),
-    selectPatchesd(keys=["image"]),
+    #selectPatchesd(keys=["image"]),
+    RandSelectPatchesd(keys=["image"]) # This one makes a random offset from the middle
     ]
 )
 
