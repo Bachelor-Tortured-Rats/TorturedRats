@@ -28,5 +28,16 @@ module load cuda/10.2
 module load cudnn/v8.3.2.44-prod-cuda-10.2
 module load ffmpeg/4.2.2
 
+### activates environment
 source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
-python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 0.1 --jobid $LSB_JOBID --data_type hepatic  --model_load_path "models/selfsupervised_pretask_models/hepatic/3drpl/3drpl_hepatic__e500_k3_d0_lr1E-04_a_bmm.pth" --setup "3drpl"  --terminate_at_step "24000" --eval_each_steps "200"  --encoder_lr 0  --increase_encoder_lr --learning_rate 1e-4 --wandb_logging "online" --experiement_name "first_exp"
+
+### folds are 0 to 4
+
+### 3drpl 
+### python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 0.1 --experiement_name "first_exp" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "models/selfsupervised_pretask_models/hepatic/3drpl/3drpl_hepatic__e500_k3_d0_lr1E-04_a_bmm.pth" --setup "3drpl"  --terminate_at_step "24000" --eval_each_steps "200"  --encoder_lr 0  --increase_encoder_lr --learning_rate 1e-4 --wandb_logging "online" 
+
+### random
+### python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 1 --experiement_name "first_exp_random" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "" --setup "random"  --terminate_at_step "24000" --eval_each_steps "200" --encoder_lr 1e-4 --learning_rate 1e-4 --wandb_logging "online" 
+
+### transfer
+###python3 src/pipelines/finetune-kfold.py --k_fold 4 --label_proportion 1 --experiement_name "first_exp_transfer" --jobid $LSB_JOBID --data_type hepatic  --model_load_path "models/IRCAD__e300_k3_d0.1_lr1E-03_aTrue_bmm.pth" --setup "transfer"  --terminate_at_step "24000" --eval_each_steps "200"  --encoder_lr 0  --increase_encoder_lr --learning_rate 1e-4 --wandb_logging "online" 
