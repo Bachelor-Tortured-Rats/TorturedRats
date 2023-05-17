@@ -193,8 +193,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
 
     run = wandb.init(
         project="TorturedRats",
-        notes="test run",
-        tags=["testing", '3drpl'],
+        entity = "team-christian",
         config=config,
         mode=wandb_logging,
     )
@@ -204,7 +203,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         train_loader, val_loader = load_IRCAD_dataset(data_path, setup='3drpl_pretask')
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, setup='3drpl_pretask')
+        train_loader, val_loader = load_hepatic_dataset(data_path, 0, numkfold=1, setup='3drpl_pretask')
 
     unet_enc_model, params = create_unet_enc(
         device=device, 

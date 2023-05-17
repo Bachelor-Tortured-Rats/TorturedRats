@@ -3,7 +3,7 @@
 ### –- specify queue --
 #BSUB -q gpuv100
 ### -- set the job Name --
-#BSUB -J finetune_wrt_labelsproportion_3drpl
+#BSUB -J train_3drpl
 ### -- ask for number of cores (default: 1) --
 #BSUB -n 1
 ### -- Select the resources: 1 gpu in exclusive process mode --
@@ -21,8 +21,8 @@
 #BSUB -N
 ### -- Specify the output and error file. %J is the job-id --
 ### -- -o and -e mean append, -oo and -eo mean overwrite --
-#BSUB -o finetune_wrt_labelsproportion%J.out
-#BSUB -e finetune_wrt_labelsproportion%J.err
+#BSUB -o train_3drpl%J.out
+#BSUB -e train_3drpl%J.err
 # -- end of LSF options --
 
 nvidia-smi
@@ -34,4 +34,4 @@ module load ffmpeg/4.2.2
 
 
 source /zhome/a2/4/155672/Desktop/PythonEnvironments/venv_bachelor/bin/activate
-python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/train_3drpl.py -d hepatic --model_save_path "models/selfsupervised_pretask_models/hepatic/3drpl" -lr "1e-4" -e "500" -l "online" 
+python3 /zhome/a2/4/155672/Desktop/Bachelor/TorturedRats/src/pipelines/train_3drpl.py -d hepatic --model_save_path "models/selfsupervised_pretask_models/hepatic/3drpl" -lr "1e-5" -e "1000" -l "online"
