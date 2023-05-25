@@ -184,7 +184,7 @@ def mesh_wireframe_plot(vertices, faces, color, opacity, width):
     Ye = np.hstack((vertices[lines, 1], np.full((n, 1), None))).ravel()
     Ze = np.hstack((vertices[lines, 2], np.full((n, 1), None))).ravel()
     
-    gm = go.Scatter3d(z=Xe, y=Ye, x=Ze, mode='lines', name='', opacity=opacity,
+    gm = go.Scatter3d(z=Xe, y=Ye, x=Ze, mode='lines', opacity=opacity,
             line=dict(color=color, width=width))  
     
     return gm
