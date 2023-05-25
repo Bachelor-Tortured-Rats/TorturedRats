@@ -9,14 +9,14 @@ from monai.transforms import (AsDiscrete, AsDiscreted, Compose,
                               LabelFilterd, LoadImaged, Orientationd,
                               Rand3DElasticd, RandCropByPosNegLabeld,
                               RandRotate90d, RandShiftIntensityd, RandZoomd,
-                              SaveImaged, ScaleIntensityRanged, Spacingd)
+                              SaveImaged, ScaleIntensityRanged, Spacingd, RandSpatialCropSamplesd)
 from sklearn.model_selection import KFold, train_test_split
 
 from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd
 
 
-def select_kidney(x):
-    return x == 1
+def select_label(x):
+    return x != 0
 
 
 # Train transforms to use for self supervised learning
@@ -28,30 +28,38 @@ transforms_3drpl = Compose(
         LabelFilterd(keys=["label"], applied_labels=[1]),
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
+            a_min=-58,
+            a_max=478,
             b_min=0.0,
             b_max=1.0,
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=10),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
-            1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        RandCropByPosNegLabeld(
+            0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
+        RandZoomd(keys=["image", "label"], prob=0.2,
+                  min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
+        Rand3DElasticd(
             keys=["image", "label"],
-            label_key="label",
-            #spatial_size=(48, 48, 24), # changed for now to enable random crop
-            spatial_size = (54, 54, 30),
-            pos=1,
-            neg=1,
-            num_samples=1,
-            image_key="image",
-            image_threshold=0,
+            sigma_range=(10, 10),
+            magnitude_range=(300, 300),
+            prob=0.1,
+            padding_mode='zeros',
+            mode=['bilinear', 'nearest']),
+        RandRotate90d(
+            keys=["image", "label"],
+            prob=0.1,
+            max_k=3,
         ),
-        #selectPatchesd(keys=["image"]),
-    RandSelectPatchesd(keys=["image"]) # This one makes a random offset from the middle
+        RandShiftIntensityd(
+            keys=["image"],
+            offsets=0.05,
+            prob=0.2,
+        ),
+        RandSpatialCropSamplesd(keys = ["image"], roi_size = (54,54,30), random_size = False, num_samples = 8),
+        RandSelectPatchesd(keys=["image"]) # This one makes a random offset from the middle
     ]
 )
 
@@ -70,7 +78,7 @@ train_transforms = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
@@ -109,12 +117,12 @@ train_transforms_aug = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        RandZoomd(keys=["image", "label"], prob=0.3,
-                  min_zoom=1.3, max_zoom=1.5, mode=['area', 'nearest']),
+        RandZoomd(keys=["image", "label"], prob=0.2,
+                  min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         Rand3DElasticd(
             keys=["image", "label"],
             sigma_range=(10, 10),
@@ -129,7 +137,7 @@ train_transforms_aug = Compose(
         ),
         RandShiftIntensityd(
             keys=["image"],
-            offsets=0.10,
+            offsets=0.05,
             prob=0.2,
         ),
         RandCropByPosNegLabeld(
@@ -167,7 +175,7 @@ val_transforms = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
@@ -187,7 +195,7 @@ val_transforms_aug = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=20),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
@@ -242,14 +250,14 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
             len(train_files)*train_label_proportion)]
 
     if setup == 'transfer' or setup == 'random' or setup=='3drpl':
-        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  # do not validate on augmented data
+        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=None)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)  # do not validate on augmented data
     elif setup == '3drpl_pretask':
-        train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
+        train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
+        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
     else:  # default
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)
+        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=None)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)

@@ -35,7 +35,7 @@ transforms_3drpl = Compose(
             clip=True,
         ),
         RandSpatialCropSamplesd(keys=["image"], roi_size=(54, 54, 30), random_size=False, num_samples=8),
-        RandSelectPatchesd(keys=["image"],roi_size=(54, 54, 30)) # This one makes a random offset from the middle
+        RandSelectPatchesd(keys=["image"]) # This one makes a random offset from the middle
     ]
 )
 
