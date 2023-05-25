@@ -108,7 +108,7 @@ class selectPatchesd(RandomizableTransform, MapTransform):
 class RandSelectPatchesd(RandomizableTransform, MapTransform):
     def __init__(
         self,
-        keys: KeysCollection
+        keys: KeysCollection,
     ) -> None:
         
         self.keys = keys
@@ -154,6 +154,8 @@ class RandSelectPatchesd(RandomizableTransform, MapTransform):
         rands = self.R.randint(0, 26)
         if rands >= 13:
             rands += 1
+        #54 ,54 30
+        #96, 96, 96
         
         self.rand[0] = rands
         self.rand[1] = 19 + (self.loc[rands])[0]*16 # x start pos
@@ -200,6 +202,95 @@ class RandSelectPatchesd(RandomizableTransform, MapTransform):
 
         return d
 
+class RandSelectPatchesLarged(RandomizableTransform, MapTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+    ) -> None:
+        self.keys = keys
+        self.label_key = 'label'
+        self.rand = np.zeros(4,dtype=np.int)
+        self.rand_off = np.zeros(3,dtype=np.int)
+        self.loc = {
+             0: (0-1, 0-1, 0-1),
+             1: (0-1, 0-1, 1-1),
+             2: (0-1, 0-1, 2-1),
+             3: (0-1, 1-1, 0-1),
+             4: (0-1, 1-1, 1-1),
+             5: (0-1, 1-1, 2-1),
+             6: (0-1, 2-1, 0-1),            
+             7: (0-1, 2-1, 1-1),            
+             8: (0-1, 2-1, 2-1),
+             9: (1-1, 0-1, 0-1),
+            10: (1-1, 0-1, 1-1),
+            11: (1-1, 0-1, 2-1),
+            12: (1-1, 1-1, 0-1),
+            13: (1-1, 1-1, 1-1), # center patch
+            14: (1-1, 1-1, 2-1),
+            15: (1-1, 2-1, 0-1),
+            16: (1-1, 2-1, 1-1),
+            17: (1-1, 2-1, 2-1),
+            18: (2-1, 0-1, 0-1),
+            19: (2-1, 0-1, 1-1),
+            20: (2-1, 0-1, 2-1),
+            21: (2-1, 1-1, 0-1),
+            22: (2-1, 1-1, 1-1),
+            23: (2-1, 1-1, 2-1),
+            24: (2-1, 2-1, 0-1),
+            25: (2-1, 2-1, 1-1),
+            26: (2-1, 2-1, 2-1)
+        }
+        super().__init__()
+
+    # Chooses a random patch
+    def randomize(self):
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        rands = self.R.randint(0, 26)
+        if rands >= 13:
+            rands += 1
+        
+        self.rand[0] = rands
+        self.rand[1] = 100 + (self.loc[rands])[0]*96 # x start pos
+        self.rand[2] = 100 + (self.loc[rands])[1]*96 # y start pos
+        self.rand[3] = 100 + (self.loc[rands])[2]*96 # z start pos
+
+        self.rand_off = [self.R.randint(1,3),self.R.randint(1,3),self.R.randint(1,3)]
+
+
+    def __call__(self, data, randomize: bool = True):
+        d = dict(data) # keys: image
+
+        # Selects random relative location for patch
+        if randomize:
+            self.randomize()
+        
+        if not self._do_transform:
+            return None
+
+        # For each random crop returned by RandCropByPosNegLabel
+        # we extract the center patch and the randomly chosen patch
+        for key in self.key_iterator(d):
+            
+            # Extract center patch
+            center = d[key][0,100:196, 100:196, 100:196]
+            
+            # get random offset
+            randx = -self.rand_off[0] if self.rand[0] in [0,1,2,3,4,5,6,7,8] else self.rand_off[0]
+            randy = -self.rand_off[1] if self.rand[0] in [0,1,2,9,10,11,18,19,20] else self.rand_off[1]
+            randz = -self.rand_off[2] if self.rand[0] in [0,3,6,9,12,15,18,21,24] else self.rand_off[2]
+
+            # gets other patch
+            other = d[key][0, self.rand[1]+randx:self.rand[1]+96+randx, self.rand[2]+randy:self.rand[2]+96+randy, self.rand[3]+randz:self.rand[3]+96+randz]
+
+       
+            # Insert elements into dictionary 
+            d[key] = [center, other]
+            d[self.label_key] = self.rand[0] # position
+            
+
+        return d
 
 
 if __name__ == "__main__":

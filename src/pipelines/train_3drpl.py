@@ -2,6 +2,7 @@ from monai.utils import first, set_determinism
 import torch
 import matplotlib.pyplot as plt
 import click
+from tqdm import tqdm
 import wandb
 import logging
 from torch import nn
@@ -13,6 +14,7 @@ from src.models.unet_enc_model import load_unet_enc, create_unet_enc
 from src.models.rpl_model import RelativePathLocationModelHead, RelativePathLocationModel
 from src.data.IRCAD_dataset import load_IRCAD_dataset
 from src.data.hepatic_dataset import load_hepatic_dataset
+from src.data.ratkidney_dataset import get_loader_rat_kidney_full
 
 
 def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None):
@@ -40,15 +42,16 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
         step = 0
         
         for batch_data in train_loader:
+            logger.info(f"step: {step}")
             step += 1
             total_step_count += 1
-            #pdb.set_trace()
-            centerpatch, offsetpatch, labels = (
-                batch_data["image"][0].to(device),
-                batch_data["image"][1].to(device),
+
+            centerpatch, offsetpatch, labels = ( # sets view to batch, channel, x, y, z (batch_size, 1, x_dim, y_dim, z_dim)
+                batch_data["image"][0].view(-1,1,*batch_data["image"][0].shape[-3:]).to(device),
+                batch_data["image"][1].view(-1,1,*batch_data["image"][1].shape[-3:]).to(device),
                 batch_data["label"].to(device),
             )
-       
+
             
             optimizer.zero_grad()
             outputs = model((centerpatch, offsetpatch))
@@ -73,8 +76,8 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
 
                 for val_data in val_loader:
                     centerpatch, offsetpatch, labels = (
-                        val_data["image"][0].to(device),
-                        val_data["image"][1].to(device),
+                        val_data["image"][0].view(-1,1,*val_data["image"][0].shape[-3:]).to(device),
+                        val_data["image"][1].view(-1,1,*val_data["image"][1].shape[-3:]).to(device),
                         val_data["label"].to(device),
                     )
 
@@ -93,7 +96,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                 val_loss_list.append(val_loss)
 
                 # updates if the current metric is better than the best metric
-                if val_loss < lowest_loss:
+                if val_loss < lowest_loss or True: # we always save the model, because the pretask is just about updating the weights
                     lowest_loss = val_loss
                     lowest_loss_epoch = epoch + 1
 
@@ -124,7 +127,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         dropout=model.UnetEncoder.dropout
                     )
                     )
-                    logger.info("saved new best metric model")
+                    #logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
                           "metric": val_loss, "best_metric": lowest_loss, "accuracy": accuracy, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
@@ -163,7 +166,7 @@ def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, va
 
 
 @click.command()
-@click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
+@click.option('--data_type', '-d', type=click.Choice(['IRCAD', 'hepatic','rat_kidney'], case_sensitive=False), default='IRCAD', help='Dataset choice, defaults to IRCAD')
 @click.option('--epochs', '-e', type=click.INT, default=20, help='Max epochs to train for, defaults to 20')
 @click.option('--lr', '-lr', type=click.FLOAT, default=1e-4, help='Learning rate, defaults to 1e-4')
 @click.option('--model_save_path', type=click.Path(), default='models', help='Path to folder for saving model')
@@ -171,7 +174,8 @@ def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, va
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
 @click.option('--kernel_size', '-k', type=click.INT, default=3, help='Kernel size')
 @click.option('--dropout', '-dr', type=click.FLOAT, default=0, help='Dropout')
-def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_logging, kernel_size, dropout):
+@click.option('--num_samples', type=click.INT, default=16, help='num_samples to use for train data')
+def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_logging, kernel_size, dropout,num_samples):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # initializes logging
@@ -195,15 +199,22 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         project="TorturedRats",
         entity = "team-christian",
         config=config,
+        tags=["3drpl", "pretask"],
         mode=wandb_logging,
     )
 
     if data_type == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
         train_loader, val_loader = load_IRCAD_dataset(data_path, setup='3drpl_pretask')
+        model_head = RelativePathLocationModelHead(input_dim=1024)
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
         train_loader, val_loader = load_hepatic_dataset(data_path, 0, numkfold=1, setup='3drpl_pretask')
+        model_head = RelativePathLocationModelHead(input_dim=1024)
+    elif data_type == 'rat_kidney':
+        data_path = "/dtu/3d-imaging-center/projects/2020_QIM_22_rat_kidney/analysis/study_diabetic"
+        train_loader, val_loader = get_loader_rat_kidney_full(data_path, setup='3drpl_pretask',batch_size=1,num_samples=num_samples)
+        model_head = RelativePathLocationModelHead(input_dim=442368)
 
     unet_enc_model, params = create_unet_enc(
         device=device, 
@@ -212,8 +223,6 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         kernel_size=kernel_size,
         )
     
-    model_head = RelativePathLocationModelHead()
-
     model =  RelativePathLocationModel(unet_enc_model, model_head)
     model.to(device=device)
 
@@ -229,7 +238,7 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
                            val_interval, metric_values, figures_save_path)
 
     wandb.finish()
-
+ 
 
 if __name__ == "__main__":
     set_determinism(seed=420)
