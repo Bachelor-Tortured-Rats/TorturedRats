@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 
 def volume_slicer(vol, slices, 
                 cmin=None, cmax=None, colorscale='Gray', show_scale=False,
-                fig=None, show=True, title = '', width=600, height=600):
+                fig=None, show=True, title = '', width=600, height=600,axisscaling=(1,1,1)):
     ''' Visualizes chosen slices from volume.
         
         vol: a 3D numpy array. 
@@ -67,7 +67,7 @@ def volume_slicer(vol, slices,
     scene = dict(xaxis = dict(range=[-1, dim[2]], autorange=False),
             yaxis = dict(range=[-1, dim[1]], autorange=False),
             zaxis = dict(range=[-1, dim[0]], autorange=False), 
-            aspectratio = dict(x=dim[2]/d, y=dim[1]/d, z=dim[0]/d))
+            aspectratio = dict(x=axisscaling[0]*dim[2]/d, y=axisscaling[1]*dim[1]/d, z=axisscaling[2]*dim[0]/d))
     layout = dict(title=title, width=width, height=height, scene=scene)
 
     if fig is None:

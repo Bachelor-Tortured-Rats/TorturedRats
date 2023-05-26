@@ -20,7 +20,7 @@ def load_unet(model_path: str, device):
         "channels": checkpoint['channels'],
         "strides": checkpoint['strides'],
         "num_res_units": checkpoint['num_res_units'],
-        "dropout": checkpoint.get('dropout', 0),
+        "dropout": checkpoint.get('dropout',0.1),
         "kernel_size": checkpoint.get('kernel_size', 3)
     }
 

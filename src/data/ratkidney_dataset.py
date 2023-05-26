@@ -13,7 +13,7 @@ from monai.transforms import (AsDiscrete, AsDiscreted, Compose,
 from sklearn.model_selection import KFold, train_test_split
 from tqdm import tqdm
 
-from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd
+from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd,RandSelectPatchesLarged
 
 
 def select_kidney(x):
@@ -34,8 +34,8 @@ transforms_3drpl = Compose(
             b_max=1.0,
             clip=True,
         ),
-        RandSpatialCropSamplesd(keys=["image"], roi_size=(54, 54, 30), random_size=False, num_samples=8),
-        RandSelectPatchesd(keys=["image"]) # This one makes a random offset from the middle
+        RandSpatialCropSamplesd(keys=["image"], roi_size=(300, 300, 300), random_size=False, num_samples=8),
+        RandSelectPatchesLarged(keys=["image"]) # This one makes a random offset from the middle
     ]
 )
 
@@ -57,8 +57,8 @@ train_transforms_rat_kidney_segmented = Compose(
         CropForegroundd(keys=["image", "label"], select_fn=select_kidney, source_key="label", margin=10),# needs to be after ScaleIntensityRanged
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
+            a_min=-58,
+            a_max=478,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -66,8 +66,7 @@ train_transforms_rat_kidney_segmented = Compose(
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
-            # spatial_size=(96, 96, 96),
-            spatial_size=(48, 48, 48),
+            spatial_size=(96, 96, 96),
             pos=1,
             neg=1,
             num_samples=8,
@@ -96,7 +95,7 @@ val_transforms_rat_kidney_segmented = Compose(
         ScaleIntensityRanged(
             keys=["image"],
             a_min=-57,
-            a_max=164,
+            a_max=256,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -117,7 +116,7 @@ def get_loader_rat_kidney_full(data_dir,setup,batch_size=1,num_samples=16):
     rats = [21, 22, 24,25,28,33,36,37,38,43,47,48,51,52,55,57][:num_samples]
     
     train_images = [f'{data_dir}/aligned/rat{i}_aligned_rigid.nii' for i in rats]
-    train_masks = [f'{data_dir}/maskKidney/rat{i}_kidneyMaskProc.nii' for i in rats]
+    train_masks = [f'{data_dir}/maskKidney/rat{i}_kidneyMaskProc.nii.gz' for i in rats]
 
     data_dicts = [{"image": image_name, "mask": train_mask}
                   for image_name, train_mask in zip(train_images, train_masks)]
@@ -128,8 +127,7 @@ def get_loader_rat_kidney_full(data_dir,setup,batch_size=1,num_samples=16):
         train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1, num_workers=None)
         val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1, num_workers=None) 
     else: 
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1, num_workers=None)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1, num_workers=None)
+        raise NotImplementedError("setup not implemented")
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=2)

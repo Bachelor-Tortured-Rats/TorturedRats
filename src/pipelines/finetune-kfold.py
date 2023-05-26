@@ -13,8 +13,10 @@ from monai.utils import set_determinism
 import wandb
 from src.data.hepatic_dataset import load_hepatic_dataset
 from src.data.IRCAD_dataset import load_IRCAD_dataset
+from src.data.ratkidney_dataset import get_rat_kidney_segmented
 from src.models.unet_enc_model import init_lr, load_unet_enc, set_lr
 from src.models.unet_model import create_unet, load_unet
+import pdb
 
 
 def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device):
@@ -55,9 +57,10 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                         f"encoder learning rate increased to {optimizer.param_groups[0]['lr']:.5f}")
 
                 inputs, labels = (
-                    batch_data["image"].to(device),
-                    batch_data["label"].to(device),
+                    batch_data["image"].view(-1,1,*batch_data["image"].shape[-3:]).to(device),
+                    batch_data["label"].view(-1,1,*batch_data["label"].shape[-3:]).to(device),
                 )
+
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = loss_function(outputs, labels)
@@ -85,10 +88,11 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
         # we evaluate the model every val_interval epochs
         model.eval()
         with torch.no_grad():
+            filename_dice = dict()
             for val_data in val_loader:
                 val_inputs, val_labels = (
-                    val_data["image"].to(device),
-                    val_data["label"].to(device),
+                    val_data["image"].view(-1,1,*val_data["image"].shape[-3:]).to(device),
+                    val_data["label"].view(-1,1,*val_data["label"].shape[-3:]).to(device),
                 )
                 roi_size = (160, 160, 160)
                 sw_batch_size = 4
@@ -98,8 +102,10 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                                for i in decollate_batch(val_outputs)]
                 val_labels = [post_label(i)
                               for i in decollate_batch(val_labels)]
+                
                 # compute metric for current iteration
-                dice_metric(y_pred=val_outputs, y=val_labels)
+                dice_output =  dice_metric(y_pred=val_outputs, y=val_labels)
+                filename_dice[val_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
             # aggregate the final mean dice result
             dice_metric_value = dice_metric.aggregate().item()
@@ -125,21 +131,29 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     'dropout': model.dropout,
                     'kernel_size': model.kernel_size,
                 },  f"models/finetune-kfold/model_{jobid}.pth")
-
-            logger.info(
-                f"step: {step} of {terminate_at_step}, dice_metric: {dice_metric_value:.4f}")
+                wandb.log(step=step,data={
+                    "dice_metric_value": dice_metric_value,
+                    "best_dice_metric" : best_dice_metric,
+                    "best_dice_metric_step": best_dice_metric_step,
+                    "train_iteration_loss": train_iteration_loss,
+                    "encoder_learning_rate": optimizer.param_groups[0]['lr'],
+                    "filename_dice": filename_dice,
+                })
+            else:
+                logger.info(
+                    f"step: {step} of {terminate_at_step}, dice_metric: {dice_metric_value:.4f}")
             
-            wandb.log(step=step,data={
-                "dice_metric_value": dice_metric_value,
-                "best_dice_metric" : best_dice_metric,
-                "best_dice_metric_step": best_dice_metric_step,
-                "train_iteration_loss": train_iteration_loss,
-                "encoder_learning_rate": optimizer.param_groups[0]['lr'],
-            })
+                wandb.log(step=step,data={
+                    "dice_metric_value": dice_metric_value,
+                    "best_dice_metric" : best_dice_metric,
+                    "best_dice_metric_step": best_dice_metric_step,
+                    "train_iteration_loss": train_iteration_loss,
+                    "encoder_learning_rate": optimizer.param_groups[0]['lr'],
+                })
 
 
 def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup, terminate_at_step, eval_each_steps, encoder_lr, learning_rate, increase_encoder_lr, experiement_name, wandb_logging):
-    set_determinism(seed=420)
+    set_determinism(seed=42069)
     logger = logging.getLogger(__name__)
 
     # initialize wandb
@@ -180,6 +194,9 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
         train_loader, val_loader = load_hepatic_dataset(
             data_path, k_fold, setup=config['setup'], train_label_proportion=config['label_proportion'])
+    elif config['data_type'] == 'rat_kidney_37':
+        data_path = '/dtu/3d-imaging-center/projects/2020_QIM_22_rat_kidney/analysis/'
+        train_loader, val_loader = get_rat_kidney_segmented(data_path)
 
     # loads model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -204,7 +221,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--jobid', type=int, default=00000000,
                         help='Job id, defaults to 00000')
-    parser.add_argument('--data_type', '-d', choices=['IRCAD', 'hepatic'], default='IRCAD',
+    parser.add_argument('--data_type', '-d', choices=['IRCAD', 'hepatic','rat_kidney_37'], default='IRCAD',
                         help='Dataset choice, defaults to IRCAD')
     parser.add_argument('--label_proportion', '-lp', type=float,
                         help="Which label proportion to use for finetuning")
