@@ -173,7 +173,7 @@ def display_model_training(best_metric, best_metric_epoch, epoch_loss_values, va
 @click.option('--figures_save_path', type=click.Path(), default='reports/figures/train_model', help='Path to folder for saving figures')
 @click.option('--wandb_logging', '-l', type=click.Choice(['online', 'offline', 'disabled'], case_sensitive=False), default='disabled', help='Should wandb logging be enabled: Can be "online", "offline" or "disabled"')
 @click.option('--kernel_size', '-k', type=click.INT, default=3, help='Kernel size')
-@click.option('--dropout', '-dr', type=click.FLOAT, default=0, help='Dropout')
+@click.option('--dropout', '-dr', type=click.FLOAT, default=0.1, help='Dropout')
 @click.option('--num_samples', type=click.INT, default=16, help='num_samples to use for train data')
 def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_logging, kernel_size, dropout,num_samples):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
