@@ -19,7 +19,7 @@ from src.models.unet_model import create_unet, load_unet
 import pdb
 
 
-def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device):
+def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, test_loader, encoder_lr, learning_rate, increase_encoder_lr, device):
     '''
         Trains model for terminate_at_step steps, and evaluates model every eval_each_steps steps.
     '''
@@ -27,10 +27,10 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
     logger = logging.getLogger(__name__)
 
     step = 0 # needs to start at 1 for while loop to work
-    best_dice_metric = -1
-    best_dice_metric_step = -1
+    val_best_dice_metric = -1
+    val_best_dice_metric_step = -1
     train_iteration_loss_values = []
-    dice_metric_values = []
+    val_dice_metric_values = []
     post_pred = Compose([AsDiscrete(argmax=True, to_onehot=2)])
     post_label = Compose([AsDiscrete(to_onehot=2)])
 
@@ -88,7 +88,6 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
         # we evaluate the model every val_interval epochs
         model.eval()
         with torch.no_grad():
-            filename_dice = dict()
             for val_data in val_loader:
                 val_inputs, val_labels = (
                     val_data["image"].view(-1,1,*val_data["image"].shape[-3:]).to(device),
@@ -105,19 +104,18 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                 
                 # compute metric for current iteration
                 dice_output =  dice_metric(y_pred=val_outputs, y=val_labels)
-                filename_dice[val_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
             # aggregate the final mean dice result
-            dice_metric_value = dice_metric.aggregate().item()
+            val_dice_metric_value = dice_metric.aggregate().item()
             # reset the status for next validation round
             dice_metric.reset()
 
-            dice_metric_values.append(dice_metric_value)
-            if dice_metric_value > best_dice_metric:
+            val_dice_metric_values.append(val_dice_metric_value)
+            if val_dice_metric_value > val_best_dice_metric:
                 logger.info(
-                    f"New best model found, with dice metric: {dice_metric_value:.4f} at step {step}")
-                best_dice_metric = dice_metric_value
-                best_dice_metric_step = step
+                    f"New best model found, with dice metric: {val_dice_metric_value:.4f} at step {step}")
+                val_best_dice_metric = val_dice_metric_value
+                val_best_dice_metric_step = step
 
                 # saves the model
                 torch.save({
@@ -131,24 +129,57 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     'dropout': model.dropout,
                     'kernel_size': model.kernel_size,
                 },  f"models/finetune-kfold/model_{jobid}.pth")
+                
+
+                logger.info('Testing model on test set')
+                filename_dice_dict = dict()
+                for test_data in test_loader:
+                    test_inputs, test_labels = (
+                        test_data["image"].view(-1,1,*test_data["image"].shape[-3:]).to(device),
+                        test_data["label"].view(-1,1,*test_data["label"].shape[-3:]).to(device),
+                    )
+                    roi_size = (160, 160, 160)
+                    sw_batch_size = 4
+                    test_outputs = sliding_window_inference(
+                        test_inputs, roi_size, sw_batch_size, model)
+                    test_outputs = [post_pred(i)
+                                for i in decollate_batch(test_outputs)]
+                    test_labels = [post_label(i)
+                                for i in decollate_batch(test_labels)]
+                    
+                    # compute metric for current iteration
+                    dice_output =  dice_metric(y_pred=test_outputs, y=test_labels)
+                    filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
+
+                # aggregate the final mean dice result
+                test_dice_metric_value = dice_metric.aggregate().item()
+                # reset the status for next validation round
+                dice_metric.reset()
+
                 wandb.log(step=step,data={
-                    "dice_metric_value": dice_metric_value,
-                    "best_dice_metric" : best_dice_metric,
-                    "best_dice_metric_step": best_dice_metric_step,
+                    # for validation
+                    "val_dice_metric_value": val_dice_metric_value,
+                    "val_best_dice_metric" : val_best_dice_metric,
+                    "val_best_dice_metric_step": val_best_dice_metric_step,
                     "train_iteration_loss": train_iteration_loss,
                     "encoder_learning_rate": optimizer.param_groups[0]['lr'],
-                    "filename_dice": filename_dice,
+                    "decoder_learning_rate": optimizer.param_groups[1]['lr'],
+                    # extra for testing
+                    "filename_dice_dict": filename_dice_dict,
+                    "test_dice_metric_value": test_dice_metric_value,
                 })
             else:
                 logger.info(
-                    f"step: {step} of {terminate_at_step}, dice_metric: {dice_metric_value:.4f}")
+                    f"step: {step} of {terminate_at_step}, dice_metric: {val_dice_metric_value:.4f}")
             
                 wandb.log(step=step,data={
-                    "dice_metric_value": dice_metric_value,
-                    "best_dice_metric" : best_dice_metric,
-                    "best_dice_metric_step": best_dice_metric_step,
+                    # for validation
+                    "val_dice_metric_value": val_dice_metric_value,
+                    "val_best_dice_metric" : val_best_dice_metric,
+                    "val_best_dice_metric_step": val_best_dice_metric_step,
                     "train_iteration_loss": train_iteration_loss,
                     "encoder_learning_rate": optimizer.param_groups[0]['lr'],
+                    "decoder_learning_rate": optimizer.param_groups[1]['lr'],
                 })
 
 
@@ -192,7 +223,7 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
             data_path, setup=setup, train_label_proportion=config['label_proportion'],k_fold=k_fold)
     elif config['data_type'] == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(
+        train_loader, val_loader, test_loader = load_hepatic_dataset(
             data_path, k_fold, setup=config['setup'], train_label_proportion=config['label_proportion'])
     elif config['data_type'] == 'rat_kidney_37':
         data_path = '/dtu/3d-imaging-center/projects/2020_QIM_22_rat_kidney/analysis/'
@@ -212,7 +243,7 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
     wandb.config.update(params)
 
     # train model
-    train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, encoder_lr, learning_rate, increase_encoder_lr, device)
+    train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, val_loader, test_loader, encoder_lr, learning_rate, increase_encoder_lr, device)
 
     wandb.finish()
 

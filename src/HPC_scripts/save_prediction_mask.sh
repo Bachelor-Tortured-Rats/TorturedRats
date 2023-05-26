@@ -3,27 +3,22 @@
 ### –- specify queue --
 #BSUB -q gpuv100
 ### -- set the job Name --
-#BSUB -J train_3drpl_pretask
+#BSUB -J save_prediction_mask
 ### -- ask for number of cores (default: 1) --
 #BSUB -n 1
-###BSUB -R "span[hosts=1]"
 ### -- Select the resources: 1 gpu in exclusive process mode --
-#BSUB -gpu "num=1:mode=exclusive_process"
+#BSUB -gpu "num=1"
 ### -- set walltime limit: hh:mm --  maximum 24 hours for GPU-queues right now
-#BSUB -W 24:00
+#BSUB -W 02:00
 # request 32GB of system-memory
-#BSUB -R "rusage[mem=128GB]"
+#BSUB -R "rusage[mem=32GB]"
 #BSUB -R "select[gpu32gb]"
 ### -- set the email address --
 #BSUB -u s204159@student.dtu.dk
-### -- send notification at start --
-### #BSUB -B
-### -- send notification at completion--
-### BSUB -N
 ### -- Specify the output and error file. %J is the job-id --
 ### -- -o and -e mean append, -oo and -eo mean overwrite --
-#BSUB -o train_3drpl%J.out
-#BSUB -e train_3drpl%J.err
+#BSUB -o HPC_%J.out
+#BSUB -e HPC_%J.err
 # -- end of LSF options --
 
 nvidia-smi
@@ -33,10 +28,7 @@ module load cuda/10.2
 module load cudnn/v8.3.2.44-prod-cuda-10.2
 module load ffmpeg/4.2.2
 
-
+### activates environment
 source $HOME/Desktop/work3S204159/PythonEnvironments/bachelor37/bin/activate
-# rat
-#python3 src/pipelines/train_3drpl.py --num_samples 8 -d rat_kidney --model_save_path "models/selfsupervised_pretask_models/ratdata/5samples" -lr "1e-4" -e "5000" -l "online"
 
-# hepatic
-python3 src/pipelines/train_3drpl.py -d hepatic --model_save_path "models/selfsupervised_pretask_models/hepatic/final" -lr "1e-4" -e "1500" -l "online"
+python3 src/visualization/save_prediction_mask.py

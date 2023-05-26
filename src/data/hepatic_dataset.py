@@ -134,31 +134,44 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
     if numkfold != 1:
         kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
         kf_splits = kf.split(data_dicts)
-        train_index, val_index = list(kf_splits)[k_fold]
+        train_index, test_index = list(kf_splits)[k_fold]
 
+        # only use a subset of the training data,
+        if train_label_proportion != -1:
+            train_index = train_index[:int(len(train_index)*train_label_proportion)] # only use a subset of the training data,
+
+        # split train into train and val
+        train_index = train_index[:-max(int(len(train_index)*.1),1)]
+        val_index = train_index[-max(int(len(train_index)*.1),1):]
+    
+        # split data into train and val files
         train_files = [data_dicts[i] for i in train_index]
         val_files = [data_dicts[i] for i in val_index]
-    else: # only train data if numkfold == 1
-        train_files, val_files = train_test_split(data_dicts,test_size=0.1, random_state=420, shuffle=True)
-        # train_files = data_dicts  # uses all data in training
-        # val_files = np.random.choice(data_dicts, int(len(data_dicts)*0.2), replace=False) # tests on a subset of the train data
+        test_files = [data_dicts[i] for i in test_index]
 
-    if train_label_proportion != -1:
-        train_files = train_files[:int(
-            len(train_files)*train_label_proportion)]
+
+    else: # only train data if numkfold == 1
+        train_files, test_files = train_test_split(data_dicts,test_size=0.1, random_state=420, shuffle=True)
 
     if setup == 'transfer' or setup == 'random' or setup=='3drpl':
         train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=None)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)  # do not validate on augmented data
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)
+        test_ds = CacheDataset(data=test_files, transform=val_transforms, cache_rate=1.0, num_workers=None)  # do not validate on augmented data
     elif setup == '3drpl_pretask':
+        assert numkfold == 1, '3drpl_pretask only works with numkfold=1'
         train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
-        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
+        test_ds = CacheDataset(data=test_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
+        val_ds = None
     else:  # default
         raise NotImplementedError('Setup not implemented')
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=None)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=0)
+    
+    # sets val_loader to None if no validation set
+    if val_ds:
+        val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
+    else:
+        val_loader = None
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test_loader

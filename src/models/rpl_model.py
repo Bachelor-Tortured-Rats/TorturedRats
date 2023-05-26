@@ -25,9 +25,7 @@ class RelativePathLocationModelHead(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(input_dim, 512),
             nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Linear(256, 27),
+            nn.Linear(512, 27),
         )
 
     def forward(self, patches_A, patches_B):

@@ -17,7 +17,7 @@ from src.data.hepatic_dataset import load_hepatic_dataset
 from src.data.ratkidney_dataset import get_loader_rat_kidney_full
 
 
-def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None):
+def train_model(model, device, train_loader, test_loader, max_epochs, lr, data_type, pt, model_save_path, aug, terminate_at_step_count=None):
     optimizer = torch.optim.Adam(model.parameters(), lr)
     loss_function = nn.CrossEntropyLoss()
 
@@ -26,7 +26,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
     logger = logging.getLogger(__name__)
 
     max_epochs = max_epochs
-    val_interval = 2
+    val_interval = 10
     lowest_loss = 999999
     lowest_loss_epoch = 999999
     epoch_loss_values = []
@@ -74,7 +74,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                 val_loss = 0
                 classified_correct = []
 
-                for val_data in val_loader:
+                for val_data in test_loader:
                     centerpatch, offsetpatch, labels = (
                         val_data["image"][0].view(-1,1,*val_data["image"][0].shape[-3:]).to(device),
                         val_data["image"][1].view(-1,1,*val_data["image"][1].shape[-3:]).to(device),
@@ -116,7 +116,7 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                         'kernel_size': model.UnetEncoder.kernel_size,
                         'epoch': lowest_loss_epoch,
                         'best_metric': lowest_loss,
-                    }, "{folder_path}/3drpl_{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_bmm.pth".format(
+                    }, "{folder_path}/FINAL_3drpl_{data_type}_{pt}_e{max_epochs}_k{kernel_size}_d{dropout}_lr{lr:.0E}_a{aug}_bmm.pth".format(
                         folder_path=model_save_path,
                         data_type=data_type,
                         pt=pt,
@@ -130,7 +130,14 @@ def train_model(model, device, train_loader, val_loader, max_epochs, lr, data_ty
                     #logger.info("saved new best metric model")
 
                 wandb.log(step=epoch, data={
-                          "metric": val_loss, "best_metric": lowest_loss, "accuracy": accuracy, "train_loss": epoch_loss, "val_loss": val_loss, 'epoch': epoch})
+                          "metric": val_loss, 
+                          "best_metric": lowest_loss, 
+                          "accuracy": accuracy, 
+                          "train_loss": epoch_loss, 
+                          "val_loss": val_loss, 
+                          'epoch': epoch
+                          })
+                
                 logger.info(
                     f"current epoch: {epoch + 1} Validation Loss: {val_loss:.4f}"
                     f"\nbest best_metric: {lowest_loss:.4f} "
@@ -205,15 +212,15 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
 
     if data_type == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        train_loader, val_loader = load_IRCAD_dataset(data_path, setup='3drpl_pretask')
+        train_loader, test_loader = load_IRCAD_dataset(data_path, setup='3drpl_pretask')
         model_head = RelativePathLocationModelHead(input_dim=1024)
     elif data_type == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
-        train_loader, val_loader = load_hepatic_dataset(data_path, 0, numkfold=1, setup='3drpl_pretask')
+        train_loader, val_loader, test_loader = load_hepatic_dataset(data_path, 0, numkfold=1, setup='3drpl_pretask')
         model_head = RelativePathLocationModelHead(input_dim=1024)
     elif data_type == 'rat_kidney':
         data_path = "/dtu/3d-imaging-center/projects/2020_QIM_22_rat_kidney/analysis/study_diabetic"
-        train_loader, val_loader = get_loader_rat_kidney_full(data_path, setup='3drpl_pretask',batch_size=1,num_samples=num_samples)
+        train_loader, test_loader = get_loader_rat_kidney_full(data_path, setup='3drpl_pretask',batch_size=1,num_samples=num_samples)
         model_head = RelativePathLocationModelHead(input_dim=442368)
 
     unet_enc_model, params = create_unet_enc(
@@ -232,15 +239,15 @@ def main(data_type, epochs, lr, model_save_path, figures_save_path, wandb_loggin
         logger.info(f'using model with params: {params}')
 
     model, best_metric, best_metric_epoch, epoch_loss_values, val_interval, metric_values = train_model(
-        model, device, train_loader, val_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='', model_save_path=model_save_path, aug='')
+        model, device, train_loader, test_loader, max_epochs=epochs, lr=lr, data_type=data_type, pt='', model_save_path=model_save_path, aug='')
 
-    display_model_training(best_metric, best_metric_epoch, epoch_loss_values,
-                           val_interval, metric_values, figures_save_path)
+    #display_model_training(best_metric, best_metric_epoch, epoch_loss_values,
+    #                       val_interval, metric_values, figures_save_path)
 
     wandb.finish()
  
 
 if __name__ == "__main__":
-    set_determinism(seed=420)
+    set_determinism(seed=42069)
 
     main()
