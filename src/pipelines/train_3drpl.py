@@ -26,7 +26,7 @@ def train_model(model, device, train_loader, test_loader, max_epochs, lr, data_t
     logger = logging.getLogger(__name__)
 
     max_epochs = max_epochs
-    val_interval = 10
+    val_interval = 2
     lowest_loss = 999999
     lowest_loss_epoch = 999999
     epoch_loss_values = []
@@ -42,7 +42,6 @@ def train_model(model, device, train_loader, test_loader, max_epochs, lr, data_t
         step = 0
         
         for batch_data in train_loader:
-            logger.info(f"step: {step}")
             step += 1
             total_step_count += 1
 

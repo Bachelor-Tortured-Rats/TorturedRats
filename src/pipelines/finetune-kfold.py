@@ -86,6 +86,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
         train_iteration_loss_values.append(train_iteration_loss)
 
         # we evaluate the model every val_interval epochs
+        logger.info(f"Begins evaluation at step {step}")
         model.eval()
         with torch.no_grad():
             for val_data in val_loader:
@@ -103,7 +104,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                               for i in decollate_batch(val_labels)]
                 
                 # compute metric for current iteration
-                dice_output =  dice_metric(y_pred=val_outputs, y=val_labels)
+                dice_metric(y_pred=val_outputs, y=val_labels)
 
             # aggregate the final mean dice result
             val_dice_metric_value = dice_metric.aggregate().item()
@@ -148,7 +149,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                                 for i in decollate_batch(test_labels)]
                     
                     # compute metric for current iteration
-                    dice_output =  dice_metric(y_pred=test_outputs, y=test_labels)
+                    dice_output = dice_metric(y_pred=test_outputs, y=test_labels)
                     filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
                 # aggregate the final mean dice result
@@ -170,7 +171,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                 })
             else:
                 logger.info(
-                    f"step: {step} of {terminate_at_step}, dice_metric: {val_dice_metric_value:.4f}")
+                    f"No better model found at step: {step} of {terminate_at_step}, dice_metric: {val_dice_metric_value:.4f}")
             
                 wandb.log(step=step,data={
                     # for validation
