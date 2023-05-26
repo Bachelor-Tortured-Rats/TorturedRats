@@ -305,7 +305,7 @@ def create_unet_enc(device,
                     channels=(16, 32, 64, 128, 256),
                     strides=(2, 2, 2, 2),
                     num_res_units=2,
-                    dropout=0,
+                    dropout=0.1,
                     kernel_size=3
                     ):
     """Create UNet with encoder only
@@ -363,7 +363,7 @@ if __name__ == "__main__":
                           channels=(16, 32, 64, 128, 256),
                           strides=(2, 2, 2, 2),
                           num_res_units=2,
-                          dropout=0,
+                          dropout=0.1,
                           kernel_size=3)
     optimizer = init_lr(UNet, 0, 1e-4)
     optimizer = set_lr(optimizer, 1e-4, 0)
