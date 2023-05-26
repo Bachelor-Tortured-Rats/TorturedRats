@@ -35,7 +35,7 @@ transforms_3drpl = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_label, source_key="label", margin=10),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
@@ -70,7 +70,7 @@ train_transforms_aug = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_label, source_key="label", margin=10),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
@@ -114,7 +114,7 @@ val_transforms = Compose(
             clip=True,
         ),
         CropForegroundd(
-            keys=["image", "label"], select_fn=select_label, source_key="label", margin=10),
+            keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
             0.8, 0.8, 2.5), mode=("bilinear", "nearest")),

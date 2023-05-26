@@ -141,13 +141,17 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     sw_batch_size = 4
                     test_outputs = sliding_window_inference(
                         test_inputs, roi_size, sw_batch_size, model)
-                    test_outputs = [post_pred(i)
+                    test_outputs_list = [post_pred(i)
                                 for i in decollate_batch(test_outputs)]
-                    test_labels = [post_label(i)
+                    test_labels_list = [post_label(i)
                                 for i in decollate_batch(test_labels)]
                     
                     # compute metric for current iteration
-                    dice_output = dice_metric(y_pred=test_outputs, y=test_labels)
+                    try:
+                        dice_output = dice_metric(y_pred=test_outputs_list, y=test_labels_list)
+                    except:
+                        print('sadfadsfadskhfaklsdfjkldfsajbfdajdsfa')
+                        pdb.set_trace()
                     filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
                 # aggregate the final mean dice result
