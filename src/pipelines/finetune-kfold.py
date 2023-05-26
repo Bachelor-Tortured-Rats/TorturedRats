@@ -86,7 +86,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
         train_iteration_loss_values.append(train_iteration_loss)
 
         # we evaluate the model every val_interval epochs
-        logger.info(f"Begins evaluation at step {step}")
+        logger.info(f"--- Begins evaluation at step {step} ---")
         model.eval()
         with torch.no_grad():
             for val_data in val_loader:
@@ -131,8 +131,6 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     'kernel_size': model.kernel_size,
                 },  f"models/finetune-kfold/model_{jobid}.pth")
                 
-
-                logger.info('Testing model on test set')
                 filename_dice_dict = dict()
                 for test_data in test_loader:
                     test_inputs, test_labels = (

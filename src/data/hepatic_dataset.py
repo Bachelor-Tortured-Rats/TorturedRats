@@ -141,8 +141,8 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
             train_index = train_index[:int(len(train_index)*train_label_proportion)] # only use a subset of the training data,
 
         # split train into train and val
-        train_index = train_index[:-max(int(len(train_index)*.1),1)]
-        val_index = train_index[-max(int(len(train_index)*.1),1):]
+        train_index = train_index[:-max(int(len(train_index)*.2),1)]
+        val_index = train_index[-max(int(len(train_index)*.2),1):]
     
         # split data into train and val files
         train_files = [data_dicts[i] for i in train_index]
