@@ -13,7 +13,7 @@ from monai.transforms import (AsDiscrete, AsDiscreted, Compose,
                               SaveImaged, ScaleIntensityRanged, Spacingd, RandSpatialCropSamplesd)
 from sklearn.model_selection import KFold, train_test_split
 
-from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd
+from src.utils.data_transformations import selectPatchesd, RandSelectPatchesd, image_checker
 
 
 def select_label(x):
@@ -39,7 +39,7 @@ transforms_3drpl = Compose(
             keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
-            0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
+            1,1,2.5), mode=("bilinear", "nearest")),
         RandZoomd(keys=["image", "label"], prob=0.2,
                   min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         RandRotate90d(
@@ -73,7 +73,8 @@ train_transforms_aug = Compose(
         CropForegroundd(
             keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
+        Spacingd(keys=["image", "label"], pixdim=(1,1,2.5), mode=("bilinear", "nearest")),
+        image_checker(keys=["image"]),
         RandZoomd(keys=["image", "label"], prob=0.2,
                   min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         RandRotate90d(
@@ -95,7 +96,7 @@ train_transforms_aug = Compose(
             neg=1,
             num_samples=8,
             image_key="image",
-            image_threshold=-1,
+            image_threshold=-1, # we choose the full image
         ),
     ]
 )
@@ -117,7 +118,8 @@ val_transforms = Compose(
             keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         Spacingd(keys=["image", "label"], pixdim=(
-            0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
+            1,1,2.5), mode=("bilinear", "nearest")),
+        image_checker(keys=["image"]),
     ]
 )
 
@@ -131,10 +133,9 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
     data_dicts = [{"image": image_name, "label": label_name}
                   for image_name, label_name in zip(train_images, train_labels)]
     
-    # removes images that are to small under 48 in z axis.
+    # removes images that are to small under when rescaled (48> in z axis).
     data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_238.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_238.nii.gz'})
     data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_240.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_240.nii.gz'})
-    data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_406.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_406.nii.gz'})
 
     if numkfold != 1:
         kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
