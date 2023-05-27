@@ -104,8 +104,10 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                               for i in decollate_batch(val_labels)]
                 
                 # compute metric for current iteration
-                dice_metric(y_pred=val_outputs, y=val_labels)
-
+                try:
+                    dice_metric(y_pred=val_outputs, y=val_labels)
+                except:
+                    print(f'print error in volumes test_outputs_list[0].shape: {val_outputs[0].shape}, test_labels_list[0].shape: {val_labels[0].shape}, on file {val_data["image_meta_dict"]["filename_or_obj"][0]}')
             # aggregate the final mean dice result
             val_dice_metric_value = dice_metric.aggregate().item()
             # reset the status for next validation round

@@ -95,7 +95,7 @@ train_transforms_aug = Compose(
             neg=1,
             num_samples=8,
             image_key="image",
-            image_threshold=0,
+            image_threshold=-1,
         ),
     ]
 )
@@ -130,6 +130,11 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
 
     data_dicts = [{"image": image_name, "label": label_name}
                   for image_name, label_name in zip(train_images, train_labels)]
+    
+    # removes images that are to small under 48 in z axis.
+    data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_238.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_238.nii.gz'})
+    data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_240.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_240.nii.gz'})
+    data_dicts.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_406.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_406.nii.gz'})
 
     if numkfold != 1:
         kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
@@ -148,9 +153,6 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
     
         # split data into train and val files
         train_files = [data_dicts[i] for i in train_index]
-        # removes images that are to small
-        train_files.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_238.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_238.nii.gz'})
-        train_files.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_240.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_240.nii.gz'})
         val_files = [data_dicts[i] for i in val_index]
         test_files = [data_dicts[i] for i in test_index]
 
