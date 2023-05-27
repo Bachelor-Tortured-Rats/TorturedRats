@@ -150,8 +150,7 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     try:
                         dice_output = dice_metric(y_pred=test_outputs_list, y=test_labels_list)
                     except:
-                        print('sadfadsfadskhfaklsdfjkldfsajbfdajdsfa')
-                        pdb.set_trace()
+                        print(f'print error in volumes test_outputs_list[0].shape: {test_outputs_list[0].shape}, test_labels_list[0].shape: {test_labels_list[0].shape}, on file {test_data["image_meta_dict"]["filename_or_obj"][0]}')
                     filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
                 # aggregate the final mean dice result

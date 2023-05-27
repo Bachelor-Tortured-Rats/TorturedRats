@@ -73,8 +73,7 @@ train_transforms_aug = Compose(
         CropForegroundd(
             keys=["image", "label"], select_fn=select_label, source_key="label", margin=20),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(
-            0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
+        Spacingd(keys=["image", "label"], pixdim=(0.8, 0.8, 2.5), mode=("bilinear", "nearest")),
         RandZoomd(keys=["image", "label"], prob=0.2,
                   min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         RandRotate90d(
@@ -149,6 +148,9 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
     
         # split data into train and val files
         train_files = [data_dicts[i] for i in train_index]
+        # removes images that are to small
+        train_files.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_238.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_238.nii.gz'})
+        train_files.remove({'image': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/imagesTr/hepaticvessel_240.nii.gz', 'label': '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/labelsTr/hepaticvessel_240.nii.gz'})
         val_files = [data_dicts[i] for i in val_index]
         test_files = [data_dicts[i] for i in test_index]
 

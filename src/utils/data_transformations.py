@@ -292,6 +292,23 @@ class RandSelectPatchesLarged(RandomizableTransform, MapTransform):
 
         return d
 
+class image_checker(MapTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+    ) -> None:
+        
+        self.keys = keys
+        super().__init__(keys)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            #print(d[key].shape[3])
+            if d[key].shape[3] <= 48:
+                print(d['image_meta_dict']['filename_or_obj'])
+                print("Image too small")
+        return d
 
 if __name__ == "__main__":
     import numpy as np
