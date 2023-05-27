@@ -1,6 +1,7 @@
 import glob
 import os
 import pdb
+import sklearn
 
 import numpy as np
 from monai.data import CacheDataset, DataLoader
@@ -135,19 +136,22 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
         kf = KFold(n_splits=numkfold, shuffle=True, random_state=420)
         kf_splits = kf.split(data_dicts)
         train_index, test_index = list(kf_splits)[k_fold]
-
+        pdb.set_trace()
         # only use a subset of the training data,
         if train_label_proportion != -1:
-            train_index = train_index[:int(len(train_index)*train_label_proportion)] # only use a subset of the training data,
+            # Extract random elements
+            train_index_temp = sklearn.utils.shuffle(train_index, random_state=k_fold)[:int(len(train_index)*train_label_proportion)]
+        
 
         # split train into train and val
-        train_index = train_index[:-max(int(len(train_index)*.2),1)]
-        val_index = train_index[-max(int(len(train_index)*.2),1):]
+        train_index = train_index_temp[:-max(int(len(train_index_temp)*.2),1)]
+        val_index = train_index_temp[-max(int(len(train_index_temp)*.2),1):]
     
         # split data into train and val files
         train_files = [data_dicts[i] for i in train_index]
         val_files = [data_dicts[i] for i in val_index]
         test_files = [data_dicts[i] for i in test_index]
+        pdb.set_trace()
 
 
     else: # only train data if numkfold == 1
