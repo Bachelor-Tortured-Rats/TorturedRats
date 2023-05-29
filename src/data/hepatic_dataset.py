@@ -170,6 +170,12 @@ def load_hepatic_dataset(data_dir, k_fold,numkfold=5, train_label_proportion=-1,
         train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
         test_ds = CacheDataset(data=test_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=None)
         val_ds = None
+    elif setup == 'threshold':
+        # We simply have a train test split but utilize all data in the 
+        train_files = train_files + val_files
+        train_ds = CacheDataset(data=train_files, transform=val_transforms, cache_rate=1.0, num_workers=None)
+        val_ds = None
+        test_ds = CacheDataset(data=test_files, transform=val_transforms, cache_rate=1.0, num_workers=None)
     else:  # default
         raise NotImplementedError('Setup not implemented')
 
