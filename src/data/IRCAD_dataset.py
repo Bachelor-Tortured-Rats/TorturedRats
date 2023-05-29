@@ -16,44 +16,6 @@ from monai.data import CacheDataset, DataLoader
 
 from src.utils.data_transformations import Addd, selectPatchesd
 
-train_transforms = Compose(
-    [
-        LoadImaged(keys=["image", "label",'mask','label2']),
-        EnsureChannelFirstd(keys=["image", "label",'mask','label2']),
-        Addd(keys=["label"],source_key='label2'),
-        CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
-        ScaleIntensityRanged(
-            keys=["image"],
-            a_min=-57,
-            a_max=164,
-            b_min=0.0,
-            b_max=1.0,
-            clip=True,
-        ),
-        ScaleIntensityRanged(
-            keys=["label"],
-            a_min=0,
-            a_max=1,
-            b_min=0,
-            b_max=1,
-            clip=True,
-        ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),   
-        RandCropByPosNegLabeld(
-            keys=["image", "label"],
-            label_key="label",
-            # spatial_size=(96, 96, 96),
-            spatial_size=(48, 48, 48), # needs to be divisible by 2*4=
-            pos=1,
-            neg=1,
-            num_samples=4,
-            image_key="image",
-            image_threshold=0,
-        ),
-    ]
-)
 train_transforms_aug = Compose(
     [
         LoadImaged(keys=["image", "label",'mask','label2']),
@@ -62,8 +24,8 @@ train_transforms_aug = Compose(
         CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
+            a_min=-100,
+            a_max=371,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -76,17 +38,11 @@ train_transforms_aug = Compose(
             b_max=1,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),   
-        RandZoomd(keys=["image", "label"], prob=0.3, min_zoom=1.3, max_zoom=1.5, mode=['area', 'nearest']),
-        Rand3DElasticd(
-            keys=["image", "label"], 
-            sigma_range=(10, 10), 
-            magnitude_range=(300, 300), 
-            prob=0.1, 
-            padding_mode='zeros', 
-            mode=['bilinear', 'nearest']),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        Spacingd(keys=["image", "label"], pixdim=(1,1,2.5), mode=("bilinear", "nearest")),
+        RandZoomd(keys=["image", "label"], prob=0.2,
+                  min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         RandRotate90d(
             keys=["image", "label"],
             prob=0.1,
@@ -94,19 +50,19 @@ train_transforms_aug = Compose(
         ),
         RandShiftIntensityd(
             keys=["image"],
-            offsets=0.10,
+            offsets=0.05,
             prob=0.2,
         ),
         RandCropByPosNegLabeld(
             keys=["image", "label"],
             label_key="label",
             # spatial_size=(96, 96, 96),
-            spatial_size=(48, 48, 48), # needs to be divisible by 2*4=
+            spatial_size=(48, 48, 48),
             pos=1,
             neg=1,
-            num_samples=4,
+            num_samples=8,
             image_key="image",
-            image_threshold=0,
+            image_threshold=-1, # we choose the full image
         ),
     ]
 )
@@ -118,8 +74,8 @@ val_transforms = Compose(
         CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
+            a_min=-100,
+            a_max=371,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -132,77 +88,14 @@ val_transforms = Compose(
             b_max=1,
             clip=True,
         ),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-    ]
-)
-val_transforms_aug = Compose(
-    [
-        LoadImaged(keys=["image", "label",'mask','label2']),
-        EnsureChannelFirstd(keys=["image", "label",'mask','label2']),
-        Addd(keys=["label"],source_key='label2'),
-        CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
-        ScaleIntensityRanged(
-            keys=["image"],
-            a_min=-57,
-            a_max=164,
-            b_min=0.0,
-            b_max=1.0,
-            clip=True,
-        ),
-        ScaleIntensityRanged(
-            keys=["label"],
-            a_min=0,
-            a_max=1,
-            b_min=0,
-            b_max=1,
-            clip=True,
-        ),
         CropForegroundd(keys=["image", "label"], source_key="image"),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        RandZoomd(keys=["image", "label"], prob=0.3, min_zoom=1.3, max_zoom=1.5, mode=['area', 'nearest']),
-        Rand3DElasticd(
-            keys=["image", "label"], 
-            sigma_range=(10, 10), 
-            magnitude_range=(300, 300), 
-            prob=0.1, 
-            padding_mode='zeros', 
-            mode=['bilinear', 'nearest']),
-        RandRotate90d(
-            keys=["image", "label"],
-            prob=0.1,
-            max_k=3,
-        ),
-        RandShiftIntensityd(
-            keys=["image"],
-            offsets=0.10,
-            prob=0.2,
-        )
-    ]
-)
-transforms_3drpl = Compose(
-    [
-        LoadImaged(keys=["image",'mask', "label"]),
-        EnsureChannelFirstd(keys=["image",'mask', "label"]),
-        CropForegroundd(keys=["image", "label"], source_key="mask"), # crops the scan to the size of the nyre
-        CropForegroundd(keys=["image", "label"], source_key="image"),
-        ScaleIntensityRanged(
-            keys=["image"],
-            a_min=-57,
-            a_max=164,
-            b_min=0.0,
-            b_max=1.0,
-            clip=True,
-        ),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),   
-        selectPatchesd(keys=["image"]),
+        Spacingd(keys=["image", "label"], pixdim=(1,1,2.5), mode=("bilinear", "nearest")),
     ]
 )
 
-def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1,setup=False):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
+
+def load_IRCAD_dataset(ircad_path, setup, test_train_split=.8,train_label_proportion=-1):#train_patients=[5,6,7,8,9,17],val_patients=[1,4]):
     """Loads the IRCAD dataset from folder
 
     Args:
@@ -238,18 +131,12 @@ def load_IRCAD_dataset(ircad_path, test_train_split=.8,train_label_proportion=-1
     val_mask = [f'{ircad_path}/3Dircadb1.{i}/MASKS_DICOM/liver/' for i in val_patients]
     val_files = [{"image": image_name, "label": label_name, "mask": mask_name, "label2": label2_name} for image_name, label_name, mask_name, label2_name in zip(val_images, val_venoussystem, val_mask, val_artery)]
     
-    if setup == 'aug' or setup == 'transfer':
-        train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)  ## do not validate on augmented data
-    elif setup == '3drpl_pretask':
-        train_ds = CacheDataset(data=train_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=transforms_3drpl, cache_rate=1.0, num_workers=0)   
-    else:    
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=0)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=0)    
+    train_ds = CacheDataset(data=train_files, transform=train_transforms_aug, cache_rate=1.0, num_workers=None)
+    val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=None)  ## do not validate on augmented data
+    
         
     train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=0)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, None
 

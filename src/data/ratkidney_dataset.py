@@ -26,13 +26,17 @@ transforms_3drpl = Compose(
         Orientationd(keys=["image", "mask"], axcodes="RAS"),
         CropForegroundd(keys=["image","mask"], source_key="mask"), 
         Spacingd(keys=["image", "mask"], pixdim=(0.0226, 0.0226, 0.0226), mode=("bilinear", "nearest")),
-        ScaleIntensityRanged(
+        RandZoomd(keys=["image", "label"], prob=0.2,
+                  min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
+        RandRotate90d(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
-            b_min=0.0,
-            b_max=1.0,
-            clip=True,
+            prob=0.1,
+            max_k=3,
+        ),
+        RandShiftIntensityd(
+            keys=["image"],
+            offsets=0.05,
+            prob=0.2,
         ),
         RandSpatialCropSamplesd(keys=["image"], roi_size=(300, 300, 300), random_size=False, num_samples=8),
         RandSelectPatchesLarged(keys=["image"]) # This one makes a random offset from the middle
@@ -129,8 +133,8 @@ def get_loader_rat_kidney_full(data_dir,setup,batch_size=1,num_samples=16):
     else: 
         raise NotImplementedError("setup not implemented")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=2)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
 
     return train_loader, val_loader
 
