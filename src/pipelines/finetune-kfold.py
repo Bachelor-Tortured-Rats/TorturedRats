@@ -223,15 +223,14 @@ def main(jobid: str, data_type, k_fold, label_proportion, model_load_path, setup
     # load data
     if config['data_type'] == 'IRCAD':
         data_path = '/work3/s204159/3Dircadb1/'
-        train_loader, val_loader = load_IRCAD_dataset(
-            data_path, setup=setup, train_label_proportion=config['label_proportion'],k_fold=k_fold)
+        train_loader, val_loader, test_loader = load_IRCAD_dataset(data_path, setup)
     elif config['data_type'] == 'hepatic':
         data_path = '/dtu/3d-imaging-center/courses/02510/data/MSD/Task08_HepaticVessel/'
         train_loader, val_loader, test_loader = load_hepatic_dataset(
             data_path, k_fold, setup=config['setup'], train_label_proportion=config['label_proportion'])
     elif config['data_type'] == 'rat_kidney_37':
         data_path = '/dtu/3d-imaging-center/projects/2020_QIM_22_rat_kidney/analysis/'
-        train_loader, val_loader = get_rat_kidney_segmented(data_path)
+        train_loader, val_loader, test_loader = get_rat_kidney_segmented(data_path)
 
     # loads model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

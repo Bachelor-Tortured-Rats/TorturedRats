@@ -26,7 +26,15 @@ transforms_3drpl = Compose(
         Orientationd(keys=["image", "mask"], axcodes="RAS"),
         CropForegroundd(keys=["image","mask"], source_key="mask"), 
         Spacingd(keys=["image", "mask"], pixdim=(0.0226, 0.0226, 0.0226), mode=("bilinear", "nearest")),
-        RandZoomd(keys=["image", "label"], prob=0.2,
+        ScaleIntensityRanged(
+            keys=["image"],
+            a_min=0,
+            a_max=255,
+            b_min=0.0,
+            b_max=1.0,
+            clip=True,
+        ),
+        RandZoomd(keys=["image", "mask"], prob=0.2,
                   min_zoom=1, max_zoom=1.5, mode=['area', 'nearest']),
         RandRotate90d(
             keys=["image"],
@@ -146,8 +154,8 @@ def get_rat_kidney_segmented(data_dir,batch_size=1):
     '''
 
     train_images = [f'{data_dir}/analysis_rat37/rat37_reorient.nii.gz']
-    train_labels = [f'{data_dir}/analysis_rat37/vessel_zoom_ground_truth-ish_rat37.nii.gz']
-    train_masks = [f'{data_dir}/study_diabetic/aligned/rat37_aligned_rigid.nii']
+    train_labels = [f'{data_dir}/analysis_rat37/vessel_zoom_ground_truth-ish_rat37_v2.nii.gz']
+    train_masks = [f'{data_dir}/study_diabetic/maskKidney/rat37_kidneyMaskProc.nii.gz']
 
     data_dicts = [{"image": image_name, "mask": train_mask, "label": train_label} for image_name, train_mask, train_label in zip(train_images, train_masks, train_labels)]
 
@@ -159,4 +167,4 @@ def get_rat_kidney_segmented(data_dir,batch_size=1):
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, None
