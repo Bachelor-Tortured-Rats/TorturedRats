@@ -2,15 +2,15 @@
 ### Original script from: Vedrana Andersen Dahl
 ###
 
+import math
 import numpy as np
 import plotly.graph_objects as go
 
 
 # MAIN FUNCTIONS
-
 def volume_slicer(vol, slices, 
                 cmin=None, cmax=None, colorscale='Gray', show_scale=False,
-                fig=None, show=True, title = '', width=600, height=600,axisscaling=(1,1,1)):
+                fig=None, show=True, title = '', width=1200, height=1200,axisscaling=(1,1,1),camera=dict()):
     ''' Visualizes chosen slices from volume.
         
         vol: a 3D numpy array. 
@@ -59,7 +59,7 @@ def volume_slicer(vol, slices,
             surfs.append(surf)
 
     common = dict(colorscale=colorscale, cmin=cmin, cmax=cmax, 
-                  showscale=show_scale)
+                  showscale=show_scale,lighting=dict(ambient=0.9))
     surfaces = [go.Surface({**s, **common}) for s in surfs]
 
     # Set limits and aspect ratio.
@@ -68,7 +68,9 @@ def volume_slicer(vol, slices,
             yaxis = dict(range=[-1, dim[1]], autorange=False),
             zaxis = dict(range=[-1, dim[0]], autorange=False), 
             aspectratio = dict(x=axisscaling[0]*dim[2]/d, y=axisscaling[1]*dim[1]/d, z=axisscaling[2]*dim[0]/d))
-    layout = dict(title=title, width=width, height=height, scene=scene)
+
+
+    layout = dict(title=title, width=width, height=height, scene=scene,scene_camera=camera)
 
     if fig is None:
         fig = go.Figure()
@@ -116,9 +118,10 @@ def show_mesh(vertices, faces, **options):
     points_opacity = options.get('points_opacity', 1)
     points_size = options.get('points_size', 1)
     figure_title = options.get('figure_title', '')
-    figure_width = options.get('figure_width', 600)
-    figure_height = options.get('figure_height', 600)
+    figure_width = options.get('figure_width', 1200)
+    figure_height = options.get('figure_height', 1200)
     show_legend = options.get('show_legend', False)
+    camera = options.get('camera', dict())
 
     if fig is None:
         fig = go.Figure()
@@ -136,7 +139,10 @@ def show_mesh(vertices, faces, **options):
                 points_color, points_opacity, points_size))
     
     fig.update_layout(title_text = figure_title, height = figure_height, 
-                      width = figure_width, showlegend = show_legend)
+                      width = figure_width, showlegend = show_legend,scene_camera=camera)
+    
+    #layout = dict(title=title, width=width, height=height, scene=scene,scene_camera=camera)
+    #fig.update_layout(layout)
     
     if show:
         fig.show()
@@ -201,7 +207,7 @@ def mesh_surface_plot(vertices, faces, color, opacity):
 # EXPERIMENTAL FUCNTIONS
 
 def interactive_volume_slicer(vol, cmin=None, cmax=None, colorscale='Gray',
-                  title = '', width=600, height=600):
+                  title = '', width=1200, height=1200):
     '''
     This function is greatly inspired by (basicaly copied from)  
     https://plotly.com/python/visualizing-mri-volume-slices/.

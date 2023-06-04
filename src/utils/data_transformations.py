@@ -29,7 +29,7 @@ class selectPatchesd(RandomizableTransform, MapTransform):
         
         self.keys = keys
         self.label_key = 'label'
-        self.rand = np.zeros(4,dtype=np.int)
+        self.rand = np.zeros(4,dtype=int)
         self.loc = {
             0: (0, 0, 0),
             1: (0, 0, 1),
@@ -113,8 +113,8 @@ class RandSelectPatchesd(RandomizableTransform, MapTransform):
         
         self.keys = keys
         self.label_key = 'label'
-        self.rand = np.zeros(4,dtype=np.int)
-        self.rand_off = np.zeros(3,dtype=np.int)
+        self.rand = np.zeros(4,dtype=int)
+        self.rand_off = np.zeros(3,dtype=int)
         self.loc = {
              0: (0-1, 0-1, 0-1),
              1: (0-1, 0-1, 1-1),
@@ -209,8 +209,8 @@ class RandSelectPatchesLarged(RandomizableTransform, MapTransform):
     ) -> None:
         self.keys = keys
         self.label_key = 'label'
-        self.rand = np.zeros(4,dtype=np.int)
-        self.rand_off = np.zeros(3,dtype=np.int)
+        self.rand = np.zeros(4,dtype=int)
+        self.rand_off = np.zeros(3,dtype=int)
         self.loc = {
              0: (0-1, 0-1, 0-1),
              1: (0-1, 0-1, 1-1),
