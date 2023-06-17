@@ -133,32 +133,32 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     'kernel_size': model.kernel_size,
                 },  f"models/finetune-kfold/model_{jobid}.pth")
                 
-                filename_dice_dict = dict()
-                for test_data in test_loader:
-                    test_inputs, test_labels = (
-                        test_data["image"].view(-1,1,*test_data["image"].shape[-3:]).to(device),
-                        test_data["label"].view(-1,1,*test_data["label"].shape[-3:]).to(device),
-                    )
-                    roi_size = (160, 160, 160)
-                    sw_batch_size = 4
-                    test_outputs = sliding_window_inference(
-                        test_inputs, roi_size, sw_batch_size, model)
-                    test_outputs_list = [post_pred(i)
-                                for i in decollate_batch(test_outputs)]
-                    test_labels_list = [post_label(i)
-                                for i in decollate_batch(test_labels)]
+                # filename_dice_dict = dict()
+                # for test_data in test_loader:
+                #     test_inputs, test_labels = (
+                #         test_data["image"].view(-1,1,*test_data["image"].shape[-3:]).to(device),
+                #         test_data["label"].view(-1,1,*test_data["label"].shape[-3:]).to(device),
+                #     )
+                #     roi_size = (160, 160, 160)
+                #     sw_batch_size = 4
+                #     test_outputs = sliding_window_inference(
+                #         test_inputs, roi_size, sw_batch_size, model)
+                #     test_outputs_list = [post_pred(i)
+                #                 for i in decollate_batch(test_outputs)]
+                #     test_labels_list = [post_label(i)
+                #                 for i in decollate_batch(test_labels)]
                     
-                    # compute metric for current iteration
-                    try:
-                        dice_output = dice_metric(y_pred=test_outputs_list, y=test_labels_list)
-                    except:
-                        print(f'print error in volumes test_outputs_list[0].shape: {test_outputs_list[0].shape}, test_labels_list[0].shape: {test_labels_list[0].shape}, on file {test_data["image_meta_dict"]["filename_or_obj"][0]}')
-                    filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
+                #     # compute metric for current iteration
+                #     try:
+                #         dice_output = dice_metric(y_pred=test_outputs_list, y=test_labels_list)
+                #     except:
+                #         print(f'print error in volumes test_outputs_list[0].shape: {test_outputs_list[0].shape}, test_labels_list[0].shape: {test_labels_list[0].shape}, on file {test_data["image_meta_dict"]["filename_or_obj"][0]}')
+                #     filename_dice_dict[test_data['image_meta_dict']['filename_or_obj'][0]] = dice_output.cpu().numpy()[0][0]
 
-                # aggregate the final mean dice result
-                test_dice_metric_value = dice_metric.aggregate().item()
-                # reset the status for next validation round
-                dice_metric.reset()
+                # # aggregate the final mean dice result
+                # test_dice_metric_value = dice_metric.aggregate().item()
+                # # reset the status for next validation round
+                # dice_metric.reset()
 
                 wandb.log(step=step,data={
                     # for validation
@@ -168,9 +168,6 @@ def train_model(model,jobid, terminate_at_step, eval_each_steps, train_loader, v
                     "train_iteration_loss": train_iteration_loss,
                     "encoder_learning_rate": optimizer.param_groups[0]['lr'],
                     "decoder_learning_rate": optimizer.param_groups[1]['lr'],
-                    # extra for testing
-                    "filename_dice_dict": filename_dice_dict,
-                    "test_dice_metric_value": test_dice_metric_value,
                 })
             else:
                 logger.info(

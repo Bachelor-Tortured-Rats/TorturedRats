@@ -58,6 +58,7 @@ class selectPatchesd(RandomizableTransform, MapTransform):
             24: (2, 2, 0),
             25: (2, 2, 1),
             26: (2, 2, 2)
+            
         }
         super().__init__()
 
@@ -86,6 +87,8 @@ class selectPatchesd(RandomizableTransform, MapTransform):
             return None
 
         for key in self.key_iterator(d):
+
+
             #center[key] = CenterSpacialCrop(d[key], roi_size=(16, 16)) ## if we assume (48, 48)
             # gets center patch
             #print(d[key].shape)

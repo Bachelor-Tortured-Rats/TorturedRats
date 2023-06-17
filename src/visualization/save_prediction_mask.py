@@ -36,8 +36,8 @@ test_org_transforms = Compose(
         CropForegroundd(keys=["image"], source_key="image"),
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-58,
-            a_max=478,
+            a_min=0,
+            a_max=255,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -55,8 +55,8 @@ test_org_transforms_rats = Compose(
         CropForegroundd(keys=["image"], source_key="mask"), 
         ScaleIntensityRanged(
             keys=["image"],
-            a_min=-57,
-            a_max=164,
+            a_min=0,
+            a_max=255,
             b_min=0.0,
             b_max=1.0,
             clip=True,
@@ -98,7 +98,7 @@ post_transforms_rats = Compose(
         #AsDiscreted(keys="pred", argmax=True, to_onehot=2),
         Activationsd(keys="pred", softmax=True), 
         AsDiscreted(keys="pred", argmax=True),
-        SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir='reports/save_prediction_mask/transfer', output_postfix="seg", resample=False),
+        SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir='reports/end/save_prediction_mask/16742264', output_postfix="seg", resample=False),
     ]
 )
 
@@ -109,7 +109,7 @@ def save_prediction_masks(model, test_org_loader, post_transforms, device = 'cpu
         for test_data in tqdm(test_org_loader):
             test_inputs = test_data["image"]#.to(device)
             roi_size = (160, 160, 160)
-            sw_batch_size = 4
+            sw_batch_size = 8
             test_data["pred"] = sliding_window_inference(test_inputs, roi_size, sw_batch_size, model,sw_device=device,progress=True)
 
             test_data = [post_transforms(i) for i in decollate_batch(test_data)]
@@ -192,7 +192,9 @@ if __name__ == "__main__":
     model_load_path= 'models/finetune-kfold/model_16694925.pth'
     data_save_path = 'reports/save_prediction_mask'
 
-    main(model_load_path_rat_transfer, data_type="rat37", num_images_to_test=3)
+    model_load_path_rat_transfer_2 = 'models/finetune-kfold/model_16837355.pth'
+
+    main('models/finetune-kfold/model_16742264.pth', data_type="rat37", num_images_to_test=3)
 
 
     # models_dict = {

@@ -137,6 +137,7 @@ def load_IRCAD_dataset(ircad_path, setup, test_train_split=.8,train_label_propor
         
     train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=1, num_workers=0)
+    test_loader = DataLoader(val_ds, batch_size=1, num_workers=0)
 
-    return train_loader, val_loader, None
+    return train_loader, val_loader, test_loader
 

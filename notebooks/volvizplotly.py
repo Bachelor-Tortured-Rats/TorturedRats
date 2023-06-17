@@ -64,9 +64,9 @@ def volume_slicer(vol, slices,
 
     # Set limits and aspect ratio.
     d = max(dim)
-    scene = dict(xaxis = dict(range=[-1, dim[2]], autorange=False),
-            yaxis = dict(range=[-1, dim[1]], autorange=False),
-            zaxis = dict(range=[-1, dim[0]], autorange=False), 
+    scene = dict(xaxis = dict(range=[-1, dim[2]], autorange=False,visible=False),
+            yaxis = dict(range=[-1, dim[1]], autorange=False,visible=False),
+            zaxis = dict(range=[-1, dim[0]], autorange=False,visible=False), 
             aspectratio = dict(x=axisscaling[0]*dim[2]/d, y=axisscaling[1]*dim[1]/d, z=axisscaling[2]*dim[0]/d))
 
 
